@@ -26,9 +26,16 @@ everything except the agent itself.
 
 ```bash
 make demo      # .env + ClickHouse + deps + schema + corpus + embeddings
+make serve     # the web UI on http://127.0.0.1:8000
 make eval      # recall@k and the abstention curve over the golden set
 make sweep     # 3 chunk strategies x 5 values of k
 ```
+
+The UI has three tabs. **Agent** needs a Gemini key; **Hybrid count** and **Semantic search**
+do not, and the app opens on the hybrid tab when no key is set. Every tab shows its working —
+the SQL that ran, the lines that came back with their timecodes, and, for the agent, the tools
+it chose and whether its own self-check passed. That trace is the demo; the answer alone is
+the least interesting part.
 
 Then, without any API key:
 
@@ -142,7 +149,8 @@ connects as a read-only user, so a `DROP` that somehow got past the guard still 
 server. Config is entirely environment-driven; nothing in this repo carries a credential.
 
 ## Status
-🔒 **PRIVATE while under construction.** Goes public before submission — the hackathon requires
+🔒 **PRIVATE while under construction.** Web UI, retrieval and evaluation are done; the agent
+loop is built but unrun (needs a Gemini key), and hosting is not decided. Goes public before submission — the hackathon requires
 a public repo under an OSI licence (Apache-2.0, already in `LICENSE`) and a publicly hosted URL.
 
 ## Docs

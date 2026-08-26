@@ -173,6 +173,14 @@ def cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    from .web import serve
+
+    print(f"reel-query on http://{args.host}:{args.port}")
+    serve(host=args.host, port=args.port, reload=args.reload)
+    return 0
+
+
 def cmd_eval(args: argparse.Namespace) -> int:
     from .evaluation import run_eval
 
@@ -261,6 +269,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="run SQL through the built-in tool instead of the ClickHouse MCP server",
     )
     p_ask.set_defaults(func=cmd_ask)
+
+    p_serve = sub.add_parser("serve", help="run the web UI")
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8000)
+    p_serve.add_argument("--reload", action="store_true")
+    p_serve.set_defaults(func=cmd_serve)
 
     p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")
     p_eval.add_argument("--golden", default=None)

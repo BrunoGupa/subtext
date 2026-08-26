@@ -29,6 +29,9 @@ load: ## Load the bundled sample corpus and embed it
 	uv run reel-query embed
 	uv run reel-query embed-schema
 
+serve: ## Run the web UI on http://127.0.0.1:8000
+	uv run reel-query serve
+
 ask: ## Ask the agent a question: make ask Q="..."
 	uv run reel-query ask "$(Q)"
 
@@ -39,9 +42,10 @@ sweep: ## Sweep chunk strategies x top-k
 	uv run reel-query sweep
 
 demo: env up install schema load ## Full cold start to a queryable corpus
-	@echo "Ready. Try: make ask Q='How many times does Vale break a promise?'"
+	@echo "Ready. Run 'make serve' for the web UI, or:"
+	@echo "  make ask Q='How many times does Vale break a promise?'"
 
 test: ## Run the test suite
 	uv run pytest -q
 
-.PHONY: help env up down nuke install schema load ask eval sweep demo test
+.PHONY: help env up down nuke install schema load serve ask eval sweep demo test

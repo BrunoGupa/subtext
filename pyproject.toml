@@ -20,6 +20,10 @@ dependencies = [
 [project.scripts]
 reel-query = "reel_query.cli:main"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/reel_query"]
+artifacts = ["src/reel_query/web/static/*"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
