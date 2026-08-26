@@ -13,6 +13,7 @@ data before speaking" a mechanical fact rather than a claim in a prompt.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from google.adk.tools import ToolContext
@@ -255,10 +256,52 @@ def verify_answer(
     }
 
 
+def record_line_ids_from_rows(tool_context: ToolContext | None, payload: Any) -> int:
+    """Harvest `line_id` values out of an arbitrary tool result and record them.
+
+    Used for the MCP SQL tool, whose result shape this project does not control: it
+    arrives as `{"columns": [...], "rows": [[...]]}`, sometimes JSON-encoded inside a
+    text part. Anything unrecognisable is ignored rather than raising — a failure to
+    harvest should cost a citation its support, never the whole answer.
+    """
+    if tool_context is None or payload is None:
+        return 0
+
+    def walk(node: Any) -> list[int]:
+        if isinstance(node, str):
+            try:
+                return walk(json.loads(node))
+            except (ValueError, TypeError):
+                return []
+        if isinstance(node, dict):
+            columns = node.get("columns")
+            rows = node.get("rows")
+            if isinstance(columns, list) and isinstance(rows, list) and "line_id" in columns:
+                index = columns.index("line_id")
+                found = []
+                for row in rows:
+                    if isinstance(row, (list, tuple)) and len(row) > index:
+                        try:
+                            found.append(int(row[index]))
+                        except (TypeError, ValueError):
+                            continue
+                return found
+            return [i for value in node.values() for i in walk(value)]
+        if isinstance(node, (list, tuple)):
+            return [i for value in node for i in walk(value)]
+        return []
+
+    line_ids = walk(payload)
+    _record(tool_context, line_ids)
+    return len(line_ids)
+
+
+# `run_sql` is deliberately NOT in this list: the ClickHouse track requires SQL to be
+# executed through the official MCP server, so `build_agent` appends either the MCP
+# toolset or `run_sql` as the fallback.
 ALL_TOOLS = [
     inspect_schema,
     search_dialogue,
     aggregate_semantic_matches,
-    run_sql,
     verify_answer,
 ]

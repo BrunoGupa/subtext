@@ -63,6 +63,7 @@ def cmd_embed_schema(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
+    from .agent import clickhouse_mcp
     from .config import settings
     from .ingest.load import loaded_strategies
     from .retrieval import corpus_stats
@@ -72,6 +73,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     print(f"clickhouse   {s.ch_host}:{s.ch_port}/{s.ch_database}")
     print(f"embeddings   {s.embedding_model}")
     print(f"gemini       {s.gemini_model} (key {'set' if s.has_gemini_key else 'NOT set'})")
+    print(f"mcp          mcp-clickhouse {'on PATH' if clickhouse_mcp.is_available() else 'NOT FOUND - run uv sync'}")
     print(f"corpus       {stats['lines']} lines · {stats['titles']} titles · "
           f"{stats['characters']} characters · {stats['seasons']} seasons")
     chunks = loaded_strategies()
@@ -160,7 +162,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
 
     from .agent import ask
 
-    answer = ask(args.question, model=args.model)
+    answer = ask(args.question, model=args.model, use_mcp=not args.no_mcp)
     print(answer.text)
     if args.trace:
         print("\n--- trace ---")
@@ -253,6 +255,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_ask.add_argument("question")
     p_ask.add_argument("--model", default=None)
     p_ask.add_argument("--trace", action="store_true", help="show tool calls and verification")
+    p_ask.add_argument(
+        "--no-mcp",
+        action="store_true",
+        help="run SQL through the built-in tool instead of the ClickHouse MCP server",
+    )
     p_ask.set_defaults(func=cmd_ask)
 
     p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")

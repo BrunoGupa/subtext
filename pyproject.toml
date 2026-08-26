@@ -9,8 +9,9 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "clickhouse-connect>=1.7.2",
-    "google-adk>=2.7.1",
+    "google-adk[mcp]>=2.7.1",
     "google-genai>=2.20.0",
+    "mcp-clickhouse>=0.4.1",
     "pandas>=3.0.5",
     "python-dotenv>=1.2.3",
     "sentence-transformers>=6.0.0",

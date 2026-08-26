@@ -11,7 +11,8 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 
 from ..config import settings
-from .tools import ALL_TOOLS, RETRIEVED_KEY
+from . import clickhouse_mcp
+from .tools import ALL_TOOLS, RETRIEVED_KEY, record_line_ids_from_rows, run_sql
 
 APP_NAME = "reel_query"
 
@@ -34,8 +35,17 @@ Work in this order, every time:
    - Meaning + counting ("how many times", "how often", "which season most") ->
      `aggregate_semantic_matches`. One query, vector search feeding a GROUP BY.
    - Meaning, no counting ("when does she admit it?") -> `search_dialogue`.
-   - Purely structural ("how many lines does Vale have in season 3?") -> `run_sql`.
+   - Purely structural ("how many lines does Vale have in season 3?") -> `run_query`,
+     which executes SQL against ClickHouse. `list_tables` and `list_databases` are there
+     if you need to confirm something about the physical schema.
    Combining them is normal and expected.
+
+   One trap worth naming, because it is the most common way to get this wrong: filtering
+   by `character` restricts to lines that character SPEAKS. Questions about what a
+   character DID are usually evidenced by someone else's line — "you said an hour",
+   "you swore" — so use the `involving` argument, which matches speaker OR addressee.
+   Filtering a "how many times did X..." question by `character = X` will look correct
+   and quietly return almost nothing.
 4. RECOVER. If a tool returns no rows, do not answer from memory and do not pad the answer.
    Try once more with the meaning phrased differently, or a wider `max_distance`, or without
    the character filter. If it is still empty, say plainly that the corpus does not support
@@ -54,13 +64,39 @@ When you answer:
 """.strip()
 
 
-def build_agent(model: str | None = None) -> LlmAgent:
+def _after_tool(tool, args, tool_context, tool_response):  # noqa: ANN001
+    """Record line ids returned by the MCP SQL tool.
+
+    The retrieval tools record what they return so `verify_answer` has something to
+    check against. The MCP toolset cannot — it is an external process that knows
+    nothing about this project's session state — so its rows are harvested here
+    instead. Without this, SQL-derived citations would look unsupported.
+    """
+    if getattr(tool, "name", "") == "run_query":
+        record_line_ids_from_rows(tool_context, tool_response)
+    return None
+
+
+def build_agent(model: str | None = None, *, use_mcp: bool = True) -> LlmAgent:
+    """The agent.
+
+    `use_mcp=True` (the default, and what the ClickHouse track requires) routes SQL
+    through the official `mcp-clickhouse` server. `use_mcp=False` falls back to the
+    in-process `run_sql` tool, which is useful when the MCP server cannot start.
+    """
+    tools: list = list(ALL_TOOLS)
+    if use_mcp:
+        tools.append(clickhouse_mcp.build_toolset())
+    else:
+        tools.append(run_sql)
+
     return LlmAgent(
         name="reel_query_agent",
         model=model or settings().gemini_model,
         description="Answers questions about a film dialogue corpus using hybrid retrieval over ClickHouse.",
         instruction=INSTRUCTION,
-        tools=list(ALL_TOOLS),
+        tools=tools,
+        after_tool_callback=_after_tool,
     )
 
 
@@ -76,8 +112,14 @@ class AgentAnswer:
         return [call["name"] for call in self.tool_calls]
 
 
-async def ask_async(question: str, *, model: str | None = None, user_id: str = "local") -> AgentAnswer:
-    runner = InMemoryRunner(agent=build_agent(model), app_name=APP_NAME)
+async def ask_async(
+    question: str,
+    *,
+    model: str | None = None,
+    user_id: str = "local",
+    use_mcp: bool = True,
+) -> AgentAnswer:
+    runner = InMemoryRunner(agent=build_agent(model, use_mcp=use_mcp), app_name=APP_NAME)
     session = await runner.session_service.create_session(app_name=APP_NAME, user_id=user_id)
 
     message = types.Content(role="user", parts=[types.Part(text=question)])
@@ -103,11 +145,13 @@ async def ask_async(question: str, *, model: str | None = None, user_id: str = "
     return answer
 
 
-def ask(question: str, *, model: str | None = None) -> AgentAnswer:
+def ask(question: str, *, model: str | None = None, use_mcp: bool = True) -> AgentAnswer:
     """Synchronous wrapper around :func:`ask_async`."""
     import asyncio
 
-    return asyncio.run(ask_async(question, model=model, user_id=f"cli-{uuid.uuid4().hex[:8]}"))
+    return asyncio.run(
+        ask_async(question, model=model, user_id=f"cli-{uuid.uuid4().hex[:8]}", use_mcp=use_mcp)
+    )
 
 
 # ADK's `adk web` / `adk run` discovery hook.

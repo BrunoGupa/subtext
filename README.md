@@ -60,7 +60,8 @@ question
    │                              columns (12 of 33) into the SQL-generation prompt
    ├─ search_dialogue ........... cosineDistance over Array(Float32) in ClickHouse
    ├─ aggregate_semantic_matches  ⭐ ONE query: a vector-search CTE feeding a GROUP BY
-   ├─ run_sql .................... model-written SELECT, read-only guarded
+   ├─ run_query ................. model-written SELECT, executed by the official
+   │                              ClickHouse MCP server (`mcp-clickhouse`), read-only
    └─ verify_answer ............. every cited line checked against what was actually
                                   retrieved, before the answer is spoken
 ```
@@ -107,7 +108,12 @@ one you have.
 
 ## Stack
 - **Gemini + Google ADK** — planning, tool selection, self-validation (hackathon requirement #1)
-- **ClickHouse** — the corpus, the aggregation, *and* the vector search (partner product, requirement #2)
+- **ClickHouse**, reached two ways — the corpus, the aggregation *and* the vector search
+  (partner product, requirement #2):
+  - **`mcp-clickhouse`**, the official MCP server, wired in as an ADK `McpToolset`. The agent's
+    SQL goes through it, which is what the ClickHouse track requires.
+  - **`clickhouse-connect`** for the vector path, which has no choice: the question must be
+    embedded in Python before there is a query to send.
 - **sentence-transformers** (MiniLM, local) — embeddings, $0
 - **Python 3.12 + uv**
 
@@ -131,8 +137,9 @@ The agent writes SQL and then runs it, which is the point of the project and als
 way to get hurt once it is publicly reachable. Generated statements go through
 [`sql_guard.py`](src/reel_query/sql_guard.py) — single statement, `SELECT`/`WITH` only,
 comments and string literals stripped before keyword checks — *and* ClickHouse runs them with
-`readonly=1`, a time limit and a row cap. Config is entirely environment-driven; nothing in
-this repo carries a credential.
+`readonly=1`, a time limit and a row cap. The MCP server adds a third, independent layer — it
+connects as a read-only user, so a `DROP` that somehow got past the guard still fails at the
+server. Config is entirely environment-driven; nothing in this repo carries a credential.
 
 ## Status
 🔒 **PRIVATE while under construction.** Goes public before submission — the hackathon requires
