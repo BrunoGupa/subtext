@@ -1,3 +1,11 @@
+# ⚠️ IMPORTANT — study pages.
+# Local HTML explainers written to understand this build (architecture walkthroughs,
+# diagrams, notes-to-self). They are scratch thinking, not part of the project, and this
+# repo goes PUBLIC before submission. They stay untracked. Write them to `study/`.
+study/
+*.landing.html
+*.explainer.html
+
 # Secrets — never commit. `.env.example` is the documented template and IS tracked.
 .env
 .env.*
