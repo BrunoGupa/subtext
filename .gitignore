@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.*
+data/raw/
+data/*.db
+data/*.parquet
+*.log
+.DS_Store
+clickhouse_data/
