@@ -1,5 +1,5 @@
 [project]
-name = "reel-query"
+name = "subtext"
 version = "0.1.0"
 description = "Hybrid retrieval (vector + SQL) over a film dialogue corpus in ClickHouse, driven by a Gemini/ADK agent."
 readme = "README.md"
@@ -18,11 +18,11 @@ dependencies = [
 ]
 
 [project.scripts]
-reel-query = "reel_query.cli:main"
+subtext = "subtext.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/reel_query"]
-artifacts = ["src/reel_query/web/static/*"]
+packages = ["src/subtext"]
+artifacts = ["src/subtext/web/static/*"]
 
 [build-system]
 requires = ["hatchling"]

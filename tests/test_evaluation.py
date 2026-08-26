@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from reel_query.evaluation import GoldenQuestion, cited_line_ids, load_golden, parse_strategy
+from subtext.evaluation import GoldenQuestion, cited_line_ids, load_golden, parse_strategy
 
 
 def test_parse_strategy_labels():
@@ -29,7 +29,7 @@ def test_the_shipped_golden_set_meets_the_scoped_floor():
 
 
 def test_golden_set_ids_point_at_real_lines():
-    from reel_query.ingest.sample import iter_lines
+    from subtext.ingest.sample import iter_lines
 
     corpus = {line.line_id: line for line in iter_lines()}
     for question in load_golden():
@@ -61,7 +61,7 @@ class _Ctx:
 
 
 def test_line_ids_are_harvested_from_the_mcp_result_shape():
-    from reel_query.agent.tools import RETRIEVED_KEY, record_line_ids_from_rows
+    from subtext.agent.tools import RETRIEVED_KEY, record_line_ids_from_rows
 
     ctx = _Ctx()
     payload = {"columns": ["line_id", "text"], "rows": [[9, "a"], [49, "b"]]}
@@ -72,7 +72,7 @@ def test_line_ids_are_harvested_from_the_mcp_result_shape():
 def test_line_ids_are_harvested_when_the_result_arrives_json_encoded():
     import json
 
-    from reel_query.agent.tools import RETRIEVED_KEY, record_line_ids_from_rows
+    from subtext.agent.tools import RETRIEVED_KEY, record_line_ids_from_rows
 
     ctx = _Ctx()
     payload = {"content": [{"text": json.dumps({"columns": ["line_id"], "rows": [[101]]})}]}
@@ -81,7 +81,7 @@ def test_line_ids_are_harvested_when_the_result_arrives_json_encoded():
 
 
 def test_harvesting_an_unrecognised_shape_is_a_no_op_not_an_error():
-    from reel_query.agent.tools import record_line_ids_from_rows
+    from subtext.agent.tools import record_line_ids_from_rows
 
     ctx = _Ctx()
     assert record_line_ids_from_rows(ctx, {"error": "boom"}) == 0

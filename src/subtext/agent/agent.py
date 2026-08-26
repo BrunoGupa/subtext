@@ -14,7 +14,7 @@ from ..config import settings
 from . import clickhouse_mcp
 from .tools import ALL_TOOLS, RETRIEVED_KEY, record_line_ids_from_rows, run_sql
 
-APP_NAME = "reel_query"
+APP_NAME = "subtext"
 
 INSTRUCTION = """
 You answer questions about a corpus of film and television dialogue stored in ClickHouse.
@@ -91,7 +91,7 @@ def build_agent(model: str | None = None, *, use_mcp: bool = True) -> LlmAgent:
         tools.append(run_sql)
 
     return LlmAgent(
-        name="reel_query_agent",
+        name="subtext_agent",
         model=model or settings().gemini_model,
         description="Answers questions about a film dialogue corpus using hybrid retrieval over ClickHouse.",
         instruction=INSTRUCTION,

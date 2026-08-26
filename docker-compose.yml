@@ -3,9 +3,9 @@
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:25.8
-    container_name: reel-query-ch
+    container_name: subtext-ch
     environment:
-      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-reel_query}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-subtext}
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-reel}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD is required - run "make env" to generate .env}
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1

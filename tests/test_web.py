@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from reel_query.web.app import app
+from subtext.web.app import app
 
 client = TestClient(app)
 
@@ -23,7 +23,7 @@ def test_healthz():
 def test_index_serves_the_page():
     response = client.get("/")
     assert response.status_code == 200
-    assert "Reel Query" in response.text
+    assert "Subtext" in response.text
     assert "text/html" in response.headers["content-type"]
 
 
@@ -55,7 +55,7 @@ def test_aggregate_rejects_a_group_by_that_is_not_an_allowed_column():
 def test_ask_without_a_key_explains_itself_rather_than_erroring(monkeypatch):
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    from reel_query.config import settings
+    from subtext.config import settings
 
     settings.cache_clear()
     try:

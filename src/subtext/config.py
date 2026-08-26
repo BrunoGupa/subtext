@@ -44,11 +44,11 @@ def settings() -> Settings:
         ch_port=int(os.getenv("CLICKHOUSE_HTTP_PORT", "8123")),
         ch_user=os.getenv("CLICKHOUSE_USER", "reel"),
         ch_password=os.getenv("CLICKHOUSE_PASSWORD", ""),
-        ch_database=os.getenv("CLICKHOUSE_DATABASE", "reel_query"),
+        ch_database=os.getenv("CLICKHOUSE_DATABASE", "subtext"),
         ch_secure=_bool("CLICKHOUSE_SECURE", False),
         embedding_model=os.getenv(
             "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
         ),
         embedding_dim=int(os.getenv("EMBEDDING_DIM", "384")),
-        gemini_model=os.getenv("REEL_QUERY_MODEL", "gemini-2.5-flash"),
+        gemini_model=os.getenv("SUBTEXT_MODEL", "gemini-2.5-flash"),
     )

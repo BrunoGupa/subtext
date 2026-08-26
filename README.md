@@ -1,4 +1,6 @@
-# Reel Query — a text-to-SQL + hybrid-retrieval agent over a film corpus
+# Subtext — search what they meant, not what they said
+
+*A text-to-SQL + hybrid-retrieval agent over a film and TV dialogue corpus.*
 
 **Agentic Cinema: The Blockbuster Hackathon (Google Cloud) — ClickHouse track.**
 Deadline **Sept 9, 2026, 2:00 PM PDT**.
@@ -41,21 +43,21 @@ Then, without any API key:
 
 ```bash
 # vector search over dialogue
-uv run reel-query search "someone refuses to lie for him" -k 5
+uv run subtext search "someone refuses to lie for him" -k 5
 
 # the hybrid path: vector search feeding a SQL GROUP BY, in one query
-uv run reel-query aggregate "You gave me your word and then you did not do it" \
+uv run subtext aggregate "You gave me your word and then you did not do it" \
     --involving Vale --group-by season --strategy window --window-size 3 \
     --max-distance 0.75 -k 60 --show-sql
 
 # the schema slice a question would put in front of the SQL generator
-uv run reel-query schema "which season has the most broken promises?"
+uv run subtext schema "which season has the most broken promises?"
 ```
 
 And with a [free Gemini key](https://aistudio.google.com/apikey) in `.env`:
 
 ```bash
-uv run reel-query ask "How many times does Vale break a promise?" --trace
+uv run subtext ask "How many times does Vale break a promise?" --trace
 ```
 
 ## How it works
@@ -74,7 +76,7 @@ question
 ```
 
 The hybrid query is one statement, not two features glued together
-([`retrieval.py`](src/reel_query/retrieval.py)):
+([`retrieval.py`](src/subtext/retrieval.py)):
 
 ```sql
 WITH candidates AS (
@@ -134,15 +136,15 @@ the golden set needs promises that are genuinely broken later on.
 For real scale, point the loader at subtitles you obtained yourself:
 
 ```bash
-uv run reel-query load --source srt --path ./data/raw/show --title "Some Show" --title-id tt1234567
-uv run reel-query embed --strategy window --window-size 3
+uv run subtext load --source srt --path ./data/raw/show --title "Some Show" --title-id tt1234567
+uv run subtext embed --strategy window --window-size 3
 ```
 
 ## Safety
 
 The agent writes SQL and then runs it, which is the point of the project and also the obvious
 way to get hurt once it is publicly reachable. Generated statements go through
-[`sql_guard.py`](src/reel_query/sql_guard.py) — single statement, `SELECT`/`WITH` only,
+[`sql_guard.py`](src/subtext/sql_guard.py) — single statement, `SELECT`/`WITH` only,
 comments and string literals stripped before keyword checks — *and* ClickHouse runs them with
 `readonly=1`, a time limit and a row cap. The MCP server adds a third, independent layer — it
 connects as a read-only user, so a `DROP` that somehow got past the guard still fails at the

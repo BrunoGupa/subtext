@@ -22,24 +22,24 @@ install: ## Install python dependencies
 	uv sync
 
 schema: ## Create tables
-	uv run reel-query init-db
+	uv run subtext init-db
 
 load: ## Load the bundled sample corpus and embed it
-	uv run reel-query load --source sample
-	uv run reel-query embed
-	uv run reel-query embed-schema
+	uv run subtext load --source sample
+	uv run subtext embed
+	uv run subtext embed-schema
 
 serve: ## Run the web UI on http://127.0.0.1:8000
-	uv run reel-query serve
+	uv run subtext serve
 
 ask: ## Ask the agent a question: make ask Q="..."
-	uv run reel-query ask "$(Q)"
+	uv run subtext ask "$(Q)"
 
 eval: ## Run the golden-set evaluation
-	uv run reel-query eval
+	uv run subtext eval
 
 sweep: ## Sweep chunk strategies x top-k
-	uv run reel-query sweep
+	uv run subtext sweep
 
 demo: env up install schema load ## Full cold start to a queryable corpus
 	@echo "Ready. Run 'make serve' for the web UI, or:"

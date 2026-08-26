@@ -1,4 +1,4 @@
-from reel_query.chunking import Line, chunk_lines
+from subtext.chunking import Line, chunk_lines
 
 
 def make_line(line_id: int, *, season: int = 1, episode: int = 1, character: str = "A") -> Line:

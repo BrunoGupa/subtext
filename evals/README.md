@@ -42,7 +42,7 @@ mean anything.
 - **abstention curve** — at each distance cut-off, correct abstention on unanswerable
   questions against false abstention on answerable ones.
 - **citation faithfulness** — of the lines the final answer relies on, how many were actually
-  retrieved. Needs `GOOGLE_API_KEY`; run `reel-query eval --with-agent`.
+  retrieved. Needs `GOOGLE_API_KEY`; run `subtext eval --with-agent`.
 
 The split exists to separate **retrieval failure** (the answer never came back — recall@k) from
 **generation failure** (it came back and the answer ignored it, or cited something that never
@@ -53,7 +53,7 @@ which one you have.
 
 ```bash
 make eval                                   # recall@k + abstention, line strategy
-uv run reel-query eval --strategy window --window-size 3
-uv run reel-query eval --with-agent         # adds faithfulness (uses Gemini)
+uv run subtext eval --strategy window --window-size 3
+uv run subtext eval --with-agent         # adds faithfulness (uses Gemini)
 make sweep                                  # line x window3 x window5, k in 1..20
 ```

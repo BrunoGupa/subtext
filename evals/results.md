@@ -183,7 +183,7 @@ In the order the evidence supports, not the order they are fun to build:
 ## 7. Answer faithfulness
 
 ⏳ **Not yet measured — requires a `GOOGLE_API_KEY`.** The harness is written and runs with
-`make eval` plus `--with-agent`; see `reel_query/evaluation.py:evaluate_faithfulness`.
+`make eval` plus `--with-agent`; see `subtext/evaluation.py:evaluate_faithfulness`.
 
 It scores three things per question, all mechanically:
 

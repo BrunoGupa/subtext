@@ -1,4 +1,4 @@
-"""`reel-query` command line."""
+"""`subtext` command line."""
 
 from __future__ import annotations
 
@@ -78,7 +78,7 @@ def cmd_status(args: argparse.Namespace) -> int:
           f"{stats['characters']} characters · {stats['seasons']} seasons")
     chunks = loaded_strategies()
     if not chunks:
-        print("chunks       none - run: reel-query embed")
+        print("chunks       none - run: subtext embed")
     for strategy, window, count in chunks:
         print(f"chunks       {strategy} window={window}: {count}")
     return 0
@@ -154,7 +154,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
     if not settings().has_gemini_key:
         print(
             "GOOGLE_API_KEY is not set. Add one to .env (free tier at "
-            "https://aistudio.google.com/apikey), or use `reel-query aggregate` "
+            "https://aistudio.google.com/apikey), or use `subtext aggregate` "
             "for the retrieval path without the model.",
             file=sys.stderr,
         )
@@ -176,7 +176,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
 def cmd_serve(args: argparse.Namespace) -> int:
     from .web import serve
 
-    print(f"reel-query on http://{args.host}:{args.port}")
+    print(f"subtext on http://{args.host}:{args.port}")
     serve(host=args.host, port=args.port, reload=args.reload)
     return 0
 
@@ -210,7 +210,7 @@ def cmd_sweep(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="reel-query",
+        prog="subtext",
         description="Hybrid retrieval over a film dialogue corpus in ClickHouse.",
     )
     sub = parser.add_subparsers(dest="command", required=True)

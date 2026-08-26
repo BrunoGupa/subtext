@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from reel_query.ingest.srt import parse_season_episode, parse_srt
+from subtext.ingest.srt import parse_season_episode, parse_srt
 
 SAMPLE = """1
 00:00:01,000 --> 00:00:03,500

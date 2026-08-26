@@ -36,7 +36,7 @@ STATIC = Path(__file__).parent / "static"
 _agent_lock = asyncio.Semaphore(1)
 
 app = FastAPI(
-    title="Reel Query",
+    title="Subtext",
     description="Hybrid retrieval (vector + SQL) over a film dialogue corpus in ClickHouse.",
     version="0.1.0",
 )
@@ -199,4 +199,4 @@ async def api_ask(request: AskRequest) -> dict[str, Any]:
 def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:
     import uvicorn
 
-    uvicorn.run("reel_query.web.app:app", host=host, port=port, reload=reload)
+    uvicorn.run("subtext.web.app:app", host=host, port=port, reload=reload)

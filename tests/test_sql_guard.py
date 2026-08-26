@@ -1,6 +1,6 @@
 import pytest
 
-from reel_query.sql_guard import UnsafeSQL, validate
+from subtext.sql_guard import UnsafeSQL, validate
 
 
 @pytest.mark.parametrize(

@@ -15,7 +15,7 @@ lower).
 scale. For real scale, load your own subtitles instead:
 
 ```bash
-uv run reel-query load --source srt --path /path/to/srt/dir --title "Some Show" --title-id tt1234567
+uv run subtext load --source srt --path /path/to/srt/dir --title "Some Show" --title-id tt1234567
 ```
 
 ## Shape
