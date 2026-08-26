@@ -12,6 +12,7 @@ set in `evals/golden_set.jsonl` has real ground truth, alongside promises that a
 (distractors that a naive keyword search will happily return and a good retriever will rank
 lower).
 
+It is small on purpose: build against a few hundred lines, measure, then
 scale. For real scale, load your own subtitles instead:
 
 ```bash

@@ -1,8 +1,10 @@
-# ⚠️ IMPORTANT — study pages.
-# Local HTML explainers written to understand this build (architecture walkthroughs,
-# diagrams, notes-to-self). They are scratch thinking, not part of the project, and this
-# repo goes PUBLIC before submission. They stay untracked. Write them to `study/`.
+# ⚠️ IMPORTANT — this repo is PUBLIC.
+# Working notes and planning documents live in a separate private repo alongside it.
+# No personal details, account names or billing identifiers belong here.
+# These patterns are a safety net in case anything strays back in.
+docs/
 study/
+private/
 *.landing.html
 *.explainer.html
 

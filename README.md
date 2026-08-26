@@ -158,4 +158,6 @@ a public repo under an OSI licence (Apache-2.0, already in `LICENSE`) and a publ
 ## Docs
 | File | What |
 |---|---|
-| [`evals/results.md`](evals/results.md) | ⭐ The numbers and the failure analysis |
+| [`evals/results.md`](evals/results.md) | ⭐ The numbers, the sweep, and the failure analysis |
+| [`evals/README.md`](evals/README.md) | How the golden set is labelled and what each metric measures |
+| [`data/sample/README.md`](data/sample/README.md) | The bundled corpus, and how to load your own |
