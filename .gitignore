@@ -1,11 +1,21 @@
+# Secrets — never commit. `.env.example` is the documented template and IS tracked.
+.env
+.env.*
+!.env.example
+
 .venv/
 __pycache__/
 *.pyc
-.env
-.env.*
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Corpora you supply yourself. `data/sample/` is original to this repo and IS tracked.
 data/raw/
 data/*.db
 data/*.parquet
+
 *.log
 .DS_Store
 clickhouse_data/

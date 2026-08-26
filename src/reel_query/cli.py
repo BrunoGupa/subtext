@@ -1,0 +1,284 @@
+"""`reel-query` command line."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+
+def _print_rows(rows: list[dict], columns: list[str] | None = None) -> None:
+    if not rows:
+        print("(no rows)")
+        return
+    columns = columns or list(rows[0].keys())
+    widths = {c: max(len(str(c)), *(len(str(r.get(c, ""))[:60]) for r in rows)) for c in columns}
+    print("  ".join(str(c).ljust(widths[c]) for c in columns))
+    print("  ".join("-" * widths[c] for c in columns))
+    for row in rows:
+        print("  ".join(str(row.get(c, ""))[:60].ljust(widths[c]) for c in columns))
+
+
+def cmd_init_db(args: argparse.Namespace) -> int:
+    from .db import init_db
+
+    init_db()
+    print("schema ready")
+    return 0
+
+
+def cmd_load(args: argparse.Namespace) -> int:
+    from .ingest.load import load_corpus
+
+    count = load_corpus(
+        args.source,
+        path=Path(args.path) if args.path else None,
+        title=args.title,
+        title_id=args.title_id,
+    )
+    print(f"loaded {count} lines from source={args.source}")
+    return 0
+
+
+def cmd_embed(args: argparse.Namespace) -> int:
+    from .ingest.load import build_chunks
+
+    count = build_chunks(
+        strategy=args.strategy,
+        window_size=args.window_size,
+        stride=args.stride,
+        show_progress=True,
+    )
+    label = args.strategy if args.strategy == "line" else f"{args.strategy}{args.window_size}"
+    print(f"embedded {count} chunks (strategy={label})")
+    return 0
+
+
+def cmd_embed_schema(args: argparse.Namespace) -> int:
+    from .schema_retrieval import build_schema_docs
+
+    print(f"embedded {build_schema_docs()} schema column descriptions")
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from .config import settings
+    from .ingest.load import loaded_strategies
+    from .retrieval import corpus_stats
+
+    s = settings()
+    stats = corpus_stats()
+    print(f"clickhouse   {s.ch_host}:{s.ch_port}/{s.ch_database}")
+    print(f"embeddings   {s.embedding_model}")
+    print(f"gemini       {s.gemini_model} (key {'set' if s.has_gemini_key else 'NOT set'})")
+    print(f"corpus       {stats['lines']} lines · {stats['titles']} titles · "
+          f"{stats['characters']} characters · {stats['seasons']} seasons")
+    chunks = loaded_strategies()
+    if not chunks:
+        print("chunks       none - run: reel-query embed")
+    for strategy, window, count in chunks:
+        print(f"chunks       {strategy} window={window}: {count}")
+    return 0
+
+
+def cmd_search(args: argparse.Namespace) -> int:
+    from .retrieval import search
+
+    hits = search(
+        args.question,
+        k=args.k,
+        strategy=args.strategy,
+        window_size=args.window_size,
+        character=args.character,
+        involving=args.involving,
+        season=args.season,
+    )
+    _print_rows(
+        [
+            {
+                "line_id": h.line_id,
+                "s/e": f"S{h.season:02d}E{h.episode:02d}",
+                "character": h.character,
+                "timecode": h.timecode,
+                "distance": round(h.distance, 4),
+                "text": h.text,
+            }
+            for h in hits
+        ]
+    )
+    return 0
+
+
+def cmd_aggregate(args: argparse.Namespace) -> int:
+    from .retrieval import hybrid_aggregate
+
+    columns = tuple(c.strip() for c in args.group_by.split(","))
+    rows, sql = hybrid_aggregate(
+        args.question,
+        group_by=columns,
+        k=args.k,
+        strategy=args.strategy,
+        window_size=args.window_size,
+        character=args.character,
+        involving=args.involving,
+        max_distance=args.max_distance,
+    )
+    _print_rows(
+        [
+            {**{c: r[c] for c in columns}, "matches": r["matches"], "best_distance": r["best_distance"]}
+            for r in rows
+        ]
+    )
+    print(f"\ntotal: {sum(int(r['matches']) for r in rows)}")
+    if args.show_sql:
+        print(f"\nSQL:\n{sql}")
+    return 0
+
+
+def cmd_schema(args: argparse.Namespace) -> int:
+    from .schema_retrieval import schema_context
+
+    context = schema_context(args.question, k=args.k)
+    print(f"retrieved {context['columns_retrieved']} of {context['columns_available']} columns "
+          f"across {', '.join(context['tables'])}\n")
+    print(context["prompt_block"])
+    return 0
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    from .config import settings
+
+    if not settings().has_gemini_key:
+        print(
+            "GOOGLE_API_KEY is not set. Add one to .env (free tier at "
+            "https://aistudio.google.com/apikey), or use `reel-query aggregate` "
+            "for the retrieval path without the model.",
+            file=sys.stderr,
+        )
+        return 2
+
+    from .agent import ask
+
+    answer = ask(args.question, model=args.model)
+    print(answer.text)
+    if args.trace:
+        print("\n--- trace ---")
+        for call in answer.tool_calls:
+            print(f"  {call['name']}({json.dumps(call['args'], default=str)[:160]})")
+        print(f"  retrieved line_ids: {len(answer.retrieved_line_ids)}")
+        print(f"  self-verification: {answer.verified}")
+    return 0
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    from .evaluation import run_eval
+
+    run_eval(
+        golden_path=Path(args.golden) if args.golden else None,
+        ks=[int(k) for k in args.ks.split(",")],
+        strategy=args.strategy,
+        window_size=args.window_size,
+        with_agent=args.with_agent,
+        limit=args.limit,
+        output=Path(args.output) if args.output else None,
+    )
+    return 0
+
+
+def cmd_sweep(args: argparse.Namespace) -> int:
+    from .evaluation import run_sweep
+
+    run_sweep(
+        golden_path=Path(args.golden) if args.golden else None,
+        ks=[int(k) for k in args.ks.split(",")],
+        strategies=[s.strip() for s in args.strategies.split(",")],
+        output=Path(args.output) if args.output else None,
+    )
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="reel-query",
+        description="Hybrid retrieval over a film dialogue corpus in ClickHouse.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("init-db", help="create the database and tables").set_defaults(func=cmd_init_db)
+    sub.add_parser("status", help="show corpus and configuration state").set_defaults(func=cmd_status)
+    sub.add_parser("embed-schema", help="embed column descriptions for schema retrieval").set_defaults(func=cmd_embed_schema)
+
+    p_load = sub.add_parser("load", help="load a corpus into ClickHouse")
+    p_load.add_argument("--source", default="sample", choices=["sample", "srt"])
+    p_load.add_argument("--path", help="directory of .srt files (for --source srt)")
+    p_load.add_argument("--title", help="human-readable title (for --source srt)")
+    p_load.add_argument("--title-id", help="stable title id, e.g. tt1234567 (for --source srt)")
+    p_load.set_defaults(func=cmd_load)
+
+    p_embed = sub.add_parser("embed", help="chunk and embed the loaded corpus")
+    p_embed.add_argument("--strategy", default="line", choices=["line", "window"])
+    p_embed.add_argument("--window-size", type=int, default=3)
+    p_embed.add_argument("--stride", type=int, default=None)
+    p_embed.set_defaults(func=cmd_embed)
+
+    p_search = sub.add_parser("search", help="vector search over dialogue")
+    p_search.add_argument("question")
+    p_search.add_argument("-k", type=int, default=10)
+    p_search.add_argument("--strategy", default="line")
+    p_search.add_argument("--window-size", type=int, default=1)
+    p_search.add_argument("--character", default=None, help="lines this character speaks")
+    p_search.add_argument("--involving", default=None, help="lines this character speaks OR is spoken to")
+    p_search.add_argument("--season", type=int, default=None)
+    p_search.set_defaults(func=cmd_search)
+
+    p_agg = sub.add_parser("aggregate", help="vector search feeding a SQL GROUP BY")
+    p_agg.add_argument("question")
+    p_agg.add_argument("--group-by", default="season")
+    p_agg.add_argument("-k", type=int, default=40)
+    p_agg.add_argument("--strategy", default="line")
+    p_agg.add_argument("--window-size", type=int, default=1)
+    p_agg.add_argument("--character", default=None, help="lines this character speaks")
+    p_agg.add_argument("--involving", default=None, help="lines this character speaks OR is spoken to")
+    p_agg.add_argument("--max-distance", type=float, default=0.65)
+    p_agg.add_argument("--show-sql", action="store_true")
+    p_agg.set_defaults(func=cmd_aggregate)
+
+    p_schema = sub.add_parser("schema", help="show the schema slice retrieved for a question")
+    p_schema.add_argument("question")
+    p_schema.add_argument("-k", type=int, default=12)
+    p_schema.set_defaults(func=cmd_schema)
+
+    p_ask = sub.add_parser("ask", help="ask the ADK agent (needs GOOGLE_API_KEY)")
+    p_ask.add_argument("question")
+    p_ask.add_argument("--model", default=None)
+    p_ask.add_argument("--trace", action="store_true", help="show tool calls and verification")
+    p_ask.set_defaults(func=cmd_ask)
+
+    p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")
+    p_eval.add_argument("--golden", default=None)
+    p_eval.add_argument("--ks", default="1,3,5,10,20")
+    p_eval.add_argument("--strategy", default="line")
+    p_eval.add_argument("--window-size", type=int, default=1)
+    p_eval.add_argument("--with-agent", action="store_true", help="also score end-to-end answer faithfulness (uses Gemini)")
+    p_eval.add_argument("--limit", type=int, default=None)
+    p_eval.add_argument("--output", default=None)
+    p_eval.set_defaults(func=cmd_eval)
+
+    p_sweep = sub.add_parser("sweep", help="chunk strategy x top-k sweep")
+    p_sweep.add_argument("--golden", default=None)
+    p_sweep.add_argument("--ks", default="1,3,5,10,20")
+    p_sweep.add_argument("--strategies", default="line,window3,window5")
+    p_sweep.add_argument("--output", default=None)
+    p_sweep.set_defaults(func=cmd_sweep)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

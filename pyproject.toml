@@ -1,0 +1,29 @@
+[project]
+name = "reel-query"
+version = "0.1.0"
+description = "Hybrid retrieval (vector + SQL) over a film dialogue corpus in ClickHouse, driven by a Gemini/ADK agent."
+readme = "README.md"
+authors = [
+    { name = "Bruno Gutiérrez", email = "33703323+BrunoGupa@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "clickhouse-connect>=1.7.2",
+    "google-adk>=2.7.1",
+    "google-genai>=2.20.0",
+    "pandas>=3.0.5",
+    "python-dotenv>=1.2.3",
+    "sentence-transformers>=6.0.0",
+]
+
+[project.scripts]
+reel-query = "reel_query.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
