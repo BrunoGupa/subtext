@@ -33,6 +33,24 @@ def insert_lines(lines: Iterable[Line], *, replace_title_id: str | None = None) 
     return len(rows)
 
 
+def next_line_id(*, excluding_title_id: str | None = None) -> int:
+    """The next free `line_id`.
+
+    `line_id` is unique across the whole `lines` table, not per title: the retrieval
+    joins resolve a chunk's `line_ids` back through it. A loader that restarted at 1
+    for each new title would collide with an already-loaded corpus and silently join
+    chunks to the wrong show.
+    """
+    sql = "SELECT max(line_id) FROM lines"
+    params: dict[str, str] = {}
+    if excluding_title_id:
+        sql += " WHERE title_id != {tid:String}"
+        params["tid"] = excluding_title_id
+    result = client().query(sql, parameters=params)
+    top = result.result_rows[0][0] if result.result_rows else 0
+    return int(top or 0) + 1
+
+
 def read_lines() -> list[Line]:
     result = client().query(
         f"SELECT {', '.join(LINE_COLUMNS)} FROM lines ORDER BY title_id, season, episode, line_no"
@@ -74,7 +92,12 @@ def load_corpus(
         from .srt import iter_lines
 
         return insert_lines(
-            iter_lines(Path(path), title=title, title_id=title_id),
+            iter_lines(
+                Path(path),
+                title=title,
+                title_id=title_id,
+                start_line_id=next_line_id(excluding_title_id=title_id),
+            ),
             replace_title_id=title_id,
         )
 
@@ -116,6 +139,7 @@ def loaded_strategies() -> list[tuple[str, int, int]]:
 
 __all__ = [
     "load_corpus",
+    "next_line_id",
     "build_chunks",
     "read_lines",
     "loaded_strategies",

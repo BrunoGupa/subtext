@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 from .config import EVALS_DIR
+from .ingest.sample import TITLE_ID as GOLDEN_TITLE_ID
 from .retrieval import search
 
 GOLDEN_PATH = EVALS_DIR / "golden_set.jsonl"
@@ -141,6 +142,7 @@ def evaluate_recall(
     strategy: str = "line",
     window_size: int = 1,
     max_distance: float | None = None,
+    title_id: str | None = GOLDEN_TITLE_ID,
 ) -> RecallResult:
     """recall@k over the golden set, for one chunking configuration.
 
@@ -159,6 +161,7 @@ def evaluate_recall(
             k=top_k,
             strategy=strategy,
             window_size=window_size,
+            title_id=title_id,
             character=question.character,
             season=question.season,
             max_distance=max_distance,

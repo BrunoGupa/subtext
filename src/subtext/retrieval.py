@@ -89,6 +89,7 @@ WITH candidates AS (
     SELECT
         chunk_id,
         line_ids,
+        title_id,
         cosineDistance(embedding, {q:Array(Float32)}) AS distance
     FROM line_chunks
     WHERE strategy = {strategy:String}
@@ -123,11 +124,13 @@ def search(
     sql = f"""
     {_CANDIDATES_CTE}
     SELECT
-        l.line_id, c.chunk_id, c.line_ids, l.title_id, l.season, l.episode,
-        l.character, l.timecode, l.text, c.distance
+        l.line_id AS line_id, c.chunk_id AS chunk_id, c.line_ids AS line_ids,
+        l.title_id AS title_id, l.season AS season, l.episode AS episode,
+        l.character AS character, l.timecode AS timecode, l.text AS text,
+        c.distance AS distance
     FROM candidates AS c
     ARRAY JOIN c.line_ids AS lid
-    INNER JOIN lines AS l ON l.line_id = lid
+    INNER JOIN lines AS l ON l.line_id = lid AND l.title_id = c.title_id
     WHERE {where} {distance_clause}
     ORDER BY c.distance ASC, l.line_id ASC
     LIMIT {{k:UInt32}}
@@ -219,7 +222,7 @@ def hybrid_aggregate(
         groupArray(4)(l.text)      AS examples
     FROM candidates AS c
     ARRAY JOIN c.line_ids AS lid
-    INNER JOIN lines AS l ON l.line_id = lid
+    INNER JOIN lines AS l ON l.line_id = lid AND l.title_id = c.title_id
     WHERE {where} {distance_clause}
     GROUP BY {group_list}
     ORDER BY matches DESC, {group_list}
