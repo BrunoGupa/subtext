@@ -26,6 +26,13 @@ data/raw/
 data/*.db
 data/*.parquet
 
+# Third-party subtitles are never redistributed from this repo, wherever they land.
+*.srt
+*.ass
+*.ssa
+*.vtt
+*.sub
+
 *.log
 .DS_Store
 clickhouse_data/
