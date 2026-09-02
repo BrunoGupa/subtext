@@ -77,6 +77,22 @@ DDL: Sequence[str] = (
     ORDER BY (strategy, title_id, season, episode, chunk_id)
     """,
     """
+    CREATE TABLE IF NOT EXISTS aligned_lines
+    (
+        pair_id      UInt64,
+        corpus       LowCardinality(String),
+        lang_pair    LowCardinality(String),
+        source_lang  LowCardinality(String),
+        target_lang  LowCardinality(String),
+        source_text  String,
+        target_text  String,
+        INDEX idx_source source_text TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 4,
+        INDEX idx_target target_text TYPE tokenbf_v1(32768, 3, 0) GRANULARITY 4
+    )
+    ENGINE = MergeTree
+    ORDER BY (lang_pair, pair_id)
+    """,
+    """
     CREATE TABLE IF NOT EXISTS schema_docs
     (
         doc_id       UInt64,
@@ -105,5 +121,5 @@ def init_db() -> None:
 
 def drop_all() -> None:
     c = client()
-    for table in ("line_chunks", "lines", "schema_docs"):
+    for table in ("line_chunks", "lines", "aligned_lines", "schema_docs"):
         c.command(f"DROP TABLE IF EXISTS {table}")
