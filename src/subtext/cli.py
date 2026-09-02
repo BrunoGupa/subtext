@@ -28,6 +28,55 @@ def cmd_init_db(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_fetch(args: argparse.Namespace) -> int:
+    """Download the third-party corpora. Nothing is redistributed by this repo."""
+    from .ingest.fetch import all_datasets, download, human_size
+
+    catalogue = all_datasets(args.lang_pair)
+    if args.what == "all":
+        wanted = list(catalogue.values())
+    else:
+        wanted = [d for k, d in catalogue.items() if k.startswith(args.what)]
+    if not wanted:
+        print(f"nothing matches {args.what!r}; known: {', '.join(catalogue)}", file=sys.stderr)
+        return 2
+
+    pending = [d for d in wanted if not d.destination.exists() or args.force]
+    total = sum(d.approx_bytes for d in pending)
+
+    print("These datasets are NOT redistributed by this repository. Downloading from source:\n")
+    for dataset in wanted:
+        state = "present" if dataset.destination.exists() and not args.force else "will download"
+        print(f"  {dataset.key:24} {dataset.approx_size:>9}  {state}")
+        print(f"  {'':24} {dataset.description}")
+    if not pending:
+        print("\nEverything is already present. Use --force to re-download.")
+        return 0
+    print(f"\ntotal to download: {human_size(total)} -> data/raw/ (gitignored)")
+    print("\nBy using these you accept their terms; see CORPUS.md.")
+    print("  OpenSubtitles/OPUS: cite Lison & Tiedemann 2016 and link opensubtitles.org")
+    print("  IMDb: personal and non-commercial use only, attribution required\n")
+
+    if not args.yes:
+        reply = input("proceed? [y/N] ").strip().lower()
+        if reply not in {"y", "yes"}:
+            print("aborted")
+            return 1
+
+    for dataset in pending:
+        print(f"\n{dataset.key} ...")
+
+        def progress(seen: int, expected: int, _key: str = dataset.key) -> None:
+            if expected:
+                pct = 100.0 * seen / expected
+                print(f"\r  {human_size(seen)} / {human_size(expected)}  ({pct:.1f}%)", end="")
+
+        download(dataset, force=args.force, on_progress=progress)
+        print(f"\r  saved {dataset.destination.relative_to(Path.cwd()) if dataset.destination.is_relative_to(Path.cwd()) else dataset.destination}          ")
+    print("\ndone")
+    return 0
+
+
 def cmd_load(args: argparse.Namespace) -> int:
     from .ingest.load import load_corpus
 
@@ -218,6 +267,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("init-db", help="create the database and tables").set_defaults(func=cmd_init_db)
     sub.add_parser("status", help="show corpus and configuration state").set_defaults(func=cmd_status)
     sub.add_parser("embed-schema", help="embed column descriptions for schema retrieval").set_defaults(func=cmd_embed_schema)
+
+    p_fetch = sub.add_parser("fetch", help="download the third-party corpora (not redistributed here)")
+    p_fetch.add_argument("what", nargs="?", default="all",
+                         help="all (default), opus, or imdb")
+    p_fetch.add_argument("--lang-pair", default="en-es", help="OPUS language pair (default en-es)")
+    p_fetch.add_argument("--force", action="store_true", help="re-download even if present")
+    p_fetch.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    p_fetch.set_defaults(func=cmd_fetch)
 
     p_load = sub.add_parser("load", help="load a corpus into ClickHouse")
     p_load.add_argument("--source", default="sample", choices=["sample", "srt"])

@@ -24,6 +24,9 @@ install: ## Install python dependencies
 schema: ## Create tables
 	uv run subtext init-db
 
+fetch: ## Download the third-party corpora (~4.2 GB, not redistributed here) - see CORPUS.md
+	uv run subtext fetch
+
 load: ## Load the bundled sample corpus and embed it
 	uv run subtext load --source sample
 	uv run subtext embed
