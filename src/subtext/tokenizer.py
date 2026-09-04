@@ -75,6 +75,16 @@ def clickhouse_tokens_sql(column: str = "en") -> str:
     return f"extractAll(lowerUTF8({column}), '{escaped}')"
 
 
+def clickhouse_haystack_sql(column: str = "en") -> str:
+    """The tokenized line as one padded string, for whole-phrase LIKE matching.
+
+    `' my car '` matches the phrase, `' car '` does not match inside `carro`. Built from
+    `clickhouse_tokens_sql` so it cannot drift from `tokens()` — a lookup that normalised
+    differently would silently miss every phrase containing an apostrophe.
+    """
+    return f"concat(' ', arrayStringConcat({clickhouse_tokens_sql(column)}, ' '), ' ')"
+
+
 def phrase_index_sql(source: str = "subtext.mx_corpus", table: str = "subtext.phrase_index") -> str:
     """The full `phrase_index` build, generated so it cannot drift from `tokens`.
 

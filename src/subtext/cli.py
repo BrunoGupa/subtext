@@ -309,6 +309,26 @@ def cmd_precedent(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_localise(args: argparse.Namespace) -> int:
+    """Localise an English cue into Mexican Spanish, grounded in the corpus."""
+    from .agent.localiser import localise
+
+    if args.evidence_only:
+        from .localise import format_evidence, gather_evidence
+        print(format_evidence(gather_evidence(args.cue)))
+        return 0
+
+    result = localise(args.cue, model=args.model)
+    print(f"EN  {result.cue}")
+    print(f"ES  {result.spanish}")
+    print(f"\n    evidence : {result.phrases} attested phrases, {result.neighbours} neighbours")
+    print(f"    register : {result.register}")
+    print(f"    passes   : {result.passes} Gemini call(s)")
+    if not result.clean:
+        print(f"    WARNING  : peninsular markers survived the retry: {', '.join(result.peninsular)}")
+    return 0 if result.clean else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="subtext",
@@ -418,6 +438,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_prec.add_argument("cue", help="an English subtitle line")
     p_prec.add_argument("--limit", type=int, default=5)
     p_prec.set_defaults(func=cmd_precedent)
+
+    p_loc = sub.add_parser(
+        "localise", help="translate an English cue into Mexican Spanish (needs GOOGLE_API_KEY)")
+    p_loc.add_argument("cue", help="the English subtitle line")
+    p_loc.add_argument("--model", default=None)
+    p_loc.add_argument("--evidence-only", action="store_true",
+                       help="show the retrieved evidence and stop -- no model call, no cost")
+    p_loc.set_defaults(func=cmd_localise)
 
     p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")
     p_eval.add_argument("--golden", default=None)

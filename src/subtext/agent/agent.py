@@ -97,6 +97,13 @@ def build_agent(model: str | None = None, *, use_mcp: bool = True) -> LlmAgent:
         instruction=INSTRUCTION,
         tools=tools,
         after_tool_callback=_after_tool,
+        # Thinking was decided off on 2026-09-03 but never actually applied here, so every
+        # run was paying for reasoning tokens the project had already rejected. Reasoning
+        # made the model reach past its evidence: "Right now." became the invented
+        # *"Ahorita mismo."* rather than the attested *"Ahorita."*.
+        generate_content_config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+        ),
     )
 
 
