@@ -42,3 +42,12 @@ def test_precedent_is_immutable():
 
     with pytest.raises(dataclasses.FrozenInstanceError):
         make().spanish = "something else"
+
+
+def test_vector_index_granularity_spans_a_whole_part():
+    """The trap that cost an afternoon: GRANULARITY 1 gives one HNSW graph per 8,192-row
+    granule, and the search then returns confident nonsense with no error. A vector index
+    wants one graph over the whole part, so this must stay large."""
+    from subtext.embeddings import VECTOR_INDEX_GRANULARITY
+
+    assert VECTOR_INDEX_GRANULARITY >= 1_000_000

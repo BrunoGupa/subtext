@@ -283,7 +283,8 @@ def cmd_embed_mx(args: argparse.Namespace) -> int:
 
     print(f"embedding {args.column} of {args.source} -> {args.target}")
     stats = embed_column(source=args.source, column=args.column, target=args.target,
-                         batch_size=args.batch_size, min_length=args.min_length)
+                         batch_size=args.batch_size, min_length=args.min_length,
+                         index=not args.no_index)
     width = max(len(k) for k in stats)
     for key, value in stats.items():
         print(f"  {key:<{width}}  {value}")
@@ -407,6 +408,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_emx.add_argument("--batch-size", type=int, default=10_000)
     p_emx.add_argument("--min-length", type=int, default=1,
                        help="skip values shorter than this many characters")
+    p_emx.add_argument("--no-index", action="store_true",
+                       help="skip the HNSW index (brute force is exact and ~40 ms here)")
     p_emx.set_defaults(func=cmd_embed_mx)
 
     p_prec = sub.add_parser(

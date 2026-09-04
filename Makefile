@@ -59,7 +59,7 @@ build-mx: ## Build the Mexican corpus from the loaded parallel corpus (~75 s)
 build-mx-fast: ## Same, but use the shipped document boundaries instead of deriving them
 	uv run subtext build-mx --from-index data/mx_docs.tsv
 
-embed-mx: ## Embed the English side of the Mexican corpus (local model, ~85 s, no API cost)
+embed-mx: ## Embed the English side of the Mexican corpus + HNSW index (~2 min, no API cost)
 	uv run subtext embed-mx
 
 precedent: ## Find Mexican precedent for a line: make precedent Q="Hurry up!"

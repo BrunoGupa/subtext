@@ -278,7 +278,8 @@ wording never occurs.
 | runs on | the CPU, locally — **no API, no key, no cost** |
 | build | `uv run subtext embed-mx`, **85 s** for the whole corpus (6,790 lines/s) |
 | stored | one vector per *distinct* English line: 577,035 of 718,925 rows (80.3%) |
-| query | `cosineDistance` brute force, **0.1 s** warm — no ANN index needed at this size |
+| query | HNSW index, **6 ms** — against 41 ms for a full scan, at 100% recall@10 |
+| index | `vector_similarity('hnsw','cosineDistance',384)`, 496 MB, 34 s to build |
 
 Deduplicating is worth the join: `What?` occurs 2,140 times and one vector answers for all
 of them.
@@ -288,6 +289,17 @@ seconds, so a paid service would buy nothing but a bill and a key to manage. The
 embeds the *English* side, which is what an incoming subtitle is, so an English-only model
 is the right tool. If the corpus grew by an order of magnitude this decision should be
 revisited; at 577k it is not close.
+
+**The vector index has a silent trap.** `GRANULARITY` defaults to 1, which builds one
+HNSW graph per 8,192-row granule rather than one spanning the part. The query then still
+succeeds, returns ten plausible-looking rows, and is **wrong** — "Where is my car?" came
+back with "- About gay stuff." Nothing errors; the only way to notice is to compare against
+`SETTINGS use_skip_indexes=0`. With `GRANULARITY 100000000` the index agrees with the full
+scan on 200/200 neighbours across 20 queries and is ~7× faster. `VECTOR_INDEX_GRANULARITY`
+in `embeddings.py` pins it and a test guards it.
+
+Worth stating plainly: this was a configuration error on our side, not a ClickHouse defect.
+It is recorded because the failure is silent, which is the kind that survives to a demo.
 
 **What it is for.** Phrase lookup (`phrase_index`) is exact and citable but silent when the
 wording is new: "That is absolutely ridiculous" has no 3- or 4-word phrase anywhere in the
