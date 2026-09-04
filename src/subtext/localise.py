@@ -245,8 +245,11 @@ The evidence comes in two kinds and they are not equal:
 Rules:
 - Output ONLY the Spanish line. No quotes, no explanation, no alternatives, no notes.
 - Keep it the length of a subtitle. If the English is short, the Spanish is short.
-- Use `ustedes` and its verb forms, never `vosotros`/`vuestro`. This is grammar: Mexico
-  does not have Spain's second person plural at all.
+- Never use `vosotros`/`vuestro` or their verb forms. Mexico does not have Spain's second
+  person plural. Do NOT compensate by inserting `ustedes`: Spanish drops the subject
+  pronoun, and 79% of plural-you lines in this corpus do exactly that — "You guys want one
+  of these?" is "¿Quieren una de estas?", not "¿Ustedes quieren...?". Let the evidence
+  decide when the pronoun is stated.
 - Avoid vocabulary Mexican subtitlers do not write: currar, flipar, mola, cutre, chorrada,
   mogollón, aparcar, majo, pijo, cabrear, fontanero, chavales.
 - Do NOT avoid a word merely because Spain also uses it. `coche` appears 373 times in this
@@ -255,7 +258,9 @@ Rules:
   correct. Reaching for `güey` or `órale` where no evidence shows them is the failure mode
   this whole system exists to prevent.
 - Preserve names, numbers and proper nouns exactly.
-- If the evidence is empty, translate plainly into neutral Latin-American Spanish.
+- If the evidence is empty, still translate as a Mexican subtitler would, but add nothing
+  you cannot support: no slang, no regional vocabulary, no invention. Plain, correct
+  Mexican Spanish. The line will be flagged as ungrounded for a human to check.
 """
 
 
@@ -280,7 +285,10 @@ def format_evidence(evidence: Evidence) -> str:
         lines.append("")
 
     if evidence.is_empty:
-        lines.append("NO EVIDENCE FOUND. Translate plainly into neutral Latin-American Spanish.\n")
+        lines.append(
+            "NO PRECEDENT FOUND for this line. Translate it plainly and correctly, and add\n"
+            "nothing the corpus has not shown you. This output will be marked ungrounded.\n"
+        )
 
     lines.append("MEXICAN SPANISH:")
     return "\n".join(lines)

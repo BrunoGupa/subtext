@@ -80,6 +80,7 @@ class EvidenceAgent(BaseAgent):
         actions.state_delta["evidence_block"] = block
         actions.state_delta["evidence_phrases"] = len(evidence.phrases)
         actions.state_delta["evidence_neighbours"] = len(evidence.neighbours)
+        actions.state_delta["grounded"] = not evidence.is_empty
         actions.state_delta["retry_note"] = ""
         yield _event(
             ctx, self.name,
@@ -158,11 +159,24 @@ class Localised:
     phrases: int = 0
     neighbours: int = 0
     passes: int = 0
+    grounded: bool = True
     evidence_block: str = ""
 
     @property
     def clean(self) -> bool:
+        """No forms Mexicans avoid. Says nothing about whether the line had precedent."""
         return not self.not_mexican
+
+    @property
+    def trustworthy(self) -> bool:
+        """Clean AND grounded.
+
+        Without the second half a line with no precedent at all reports success: neutral
+        Spanish carries no rejectable marker, so the gate passes it, and the result is
+        indistinguishable from a grounded one. Across 1,500 cues of a film that silently
+        mixes real output with guesses.
+        """
+        return self.clean and self.grounded
 
 
 async def localise_async(
@@ -196,6 +210,7 @@ async def localise_async(
         phrases=int(state.get("evidence_phrases", 0)),
         neighbours=int(state.get("evidence_neighbours", 0)),
         passes=passes,
+        grounded=bool(state.get("grounded", True)),
         evidence_block=state.get("evidence_block", ""),
     )
 

@@ -321,11 +321,15 @@ def cmd_localise(args: argparse.Namespace) -> int:
     result = localise(args.cue, model=args.model)
     print(f"EN  {result.cue}")
     print(f"ES  {result.spanish}")
-    print(f"\n    evidence : {result.phrases} attested phrases, {result.neighbours} neighbours")
+    mark = "" if result.grounded else "   << UNGROUNDED: no precedent, this is a guess"
+    print(f"\n    evidence : {result.phrases} attested phrases, "
+          f"{result.neighbours} neighbours{mark}")
     print(f"    register : {result.register}")
     print(f"    passes   : {result.passes} Gemini call(s)")
     if not result.clean:
         print(f"    WARNING  : non-Mexican forms survived the retry: {', '.join(result.not_mexican)}")
+    # Exit non-zero for a register failure only. An ungrounded line is not an error --
+    # it is a line a human has to look at, and it says so above.
     return 0 if result.clean else 1
 
 

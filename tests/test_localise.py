@@ -138,7 +138,31 @@ def test_prompt_separates_attested_phrases_from_mere_neighbours():
 
 def test_empty_evidence_says_so_rather_than_going_silent():
     text = format_evidence(Evidence(cue="For Frodo."))
-    assert "NO EVIDENCE FOUND" in text
+    assert "NO PRECEDENT FOUND" in text
+    assert "ungrounded" in text
+
+
+def test_empty_evidence_does_not_ask_for_neutral_spanish():
+    """It used to say "translate into neutral Latin-American Spanish", which is wrong twice:
+    neutral-vs-Mexican arbitration is explicitly out of scope for this project, and a
+    neutral line is exactly what the ungrounded baseline produces. The output would then
+    pass the register gate and be indistinguishable from a grounded result."""
+    text = format_evidence(Evidence(cue="Recalibrate the tachyon manifold."))
+    assert "neutral" not in text.lower()
+
+
+def test_evidence_knows_when_it_is_empty():
+    assert Evidence(cue="x").is_empty
+    assert not Evidence(cue="x", phrases=(PhraseHit("a b", 2, 9),)).is_empty
+
+
+def test_the_instruction_does_not_mandate_ustedes():
+    """Spanish drops the subject pronoun: only 21.3% of plural-you lines in the corpus
+    state `ustedes`. Mandating it forces a construction real translators omit 4 times in 5."""
+    line = [l for l in INSTRUCTION.splitlines() if "vosotros" in l or "ustedes" in l]
+    joined = " ".join(line)
+    assert "vosotros" in joined, "the vosotros prohibition is real and must stay"
+    assert "Do NOT compensate by inserting `ustedes`" in joined
 
 
 def test_the_cue_always_reaches_the_prompt():
