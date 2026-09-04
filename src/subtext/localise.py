@@ -96,7 +96,9 @@ NOT_MEXICAN: tuple[str, ...] = (
     "chorrada", "currar", "curro", "flipante", "flipar", "flipas", "mogollon",
     # 1-2 occurrences
     "cabreado", "cabrear", "cutre", "fontanero", "gilipolleces", "majo", "maja",
-    "molar", "mola", "pajita", "pijo", "aparcar", "chavales",
+    "molar", "mola", "pijo", "aparcar", "chavales",
+    # `pajita` removed 2026-09-04 at Bruno's call: it is ordinary vocabulary rather than
+    # Spain-only slang, and a single occurrence is not grounds for a blocklist entry.
 )
 
 #: Peninsular-*leaning* vocabulary that Mexicans nonetheless write. Reported, NEVER
@@ -246,7 +248,7 @@ Rules:
 - Use `ustedes` and its verb forms, never `vosotros`/`vuestro`. This is grammar: Mexico
   does not have Spain's second person plural at all.
 - Avoid vocabulary Mexican subtitlers do not write: currar, flipar, mola, cutre, chorrada,
-  mogollón, aparcar, majo, pijo, cabrear, fontanero, pajita, chavales.
+  mogollón, aparcar, majo, pijo, cabrear, fontanero, chavales.
 - Do NOT avoid a word merely because Spain also uses it. `coche` appears 373 times in this
   corpus and `vale` 924. Mexicans write them. Follow the evidence, not a blocklist.
 - Do not add slang the evidence does not support. A neutral line translated neutrally is
