@@ -267,6 +267,46 @@ download, because the Spanish text is what the retrieval actually cites.
 
 `demo/` holds 20 cited rows of that retrieval output for readers who will not run anything.
 
+### `mx_embeddings` — 577,035 vectors, 861 MB
+
+Semantic search over the Mexican corpus, so a cue can find precedent even when its exact
+wording never occurs.
+
+| | |
+|---|---|
+| model | `sentence-transformers/all-MiniLM-L6-v2`, 384 dimensions |
+| runs on | the CPU, locally — **no API, no key, no cost** |
+| build | `uv run subtext embed-mx`, **85 s** for the whole corpus (6,790 lines/s) |
+| stored | one vector per *distinct* English line: 577,035 of 718,925 rows (80.3%) |
+| query | `cosineDistance` brute force, **0.1 s** warm — no ANN index needed at this size |
+
+Deduplicating is worth the join: `What?` occurs 2,140 times and one vector answers for all
+of them.
+
+**Why local rather than a hosted embedding API.** At this size the laptop finishes in 85
+seconds, so a paid service would buy nothing but a bill and a key to manage. The model
+embeds the *English* side, which is what an incoming subtitle is, so an English-only model
+is the right tool. If the corpus grew by an order of magnitude this decision should be
+revisited; at 577k it is not close.
+
+**What it is for.** Phrase lookup (`phrase_index`) is exact and citable but silent when the
+wording is new: "That is absolutely ridiculous" has no 3- or 4-word phrase anywhere in the
+index. Vector search always answers — which is also its danger, since it cannot promise
+anyone ever wrote the thing it found. `find_precedent()` in `retrieval.py` runs the
+semantic search and then **groups renderings and reports agreement** (`2/11 translators`),
+because a misaligned row is nearly always a lone reading of a line that several other rows
+agree on. Ranking by agreement pushes that noise down without having to detect it.
+
+The `min_consensus` lever filters on that share. It is **off by default**: no threshold
+here has been tuned against a labelled set, and shipping an untuned filter as though it
+were solved would be worse than exposing it honestly.
+
+```
+$ uv run subtext precedent "What is up, dude?"
+  [0.878] ¿Qué onda, güey?     pair_id 66249542
+  [0.878] ¿Qué pedo güey?      pair_id 71753840
+```
+
 #### What it still cannot do
 
 Marker density finds the boundary between Mexican and *non*-Mexican content. Where two

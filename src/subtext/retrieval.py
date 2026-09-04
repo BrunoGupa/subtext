@@ -255,3 +255,112 @@ def corpus_stats() -> dict[str, Any]:
     if not result.result_rows:
         return {"lines": 0, "titles": 0, "characters": 0, "seasons": 0}
     return dict(zip(result.column_names, result.result_rows[0]))
+
+
+# --------------------------------------------------------------------------------------
+# Localisation retrieval: find Mexican precedent for an English cue
+# --------------------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Precedent:
+    """One attested rendering, with everything needed to verify it."""
+
+    english: str
+    spanish: str
+    pair_id: int
+    doc_id: int
+    times: int          # how often this exact rendering occurs
+    english_times: int  # how often the English line occurs at all
+    similarity: float
+    exact: bool
+
+    @property
+    def citation(self) -> str:
+        return f"pair_id {self.pair_id}, document {self.doc_id}"
+
+    @property
+    def consensus(self) -> float:
+        """Share of this English line's renderings that agree with this one.
+
+        A misaligned row is almost always a singleton among several agreeing ones, so a
+        low share is the cheapest available warning that a citation may be junk.
+        """
+        return self.times / self.english_times if self.english_times else 0.0
+
+
+def find_precedent(
+    cue: str,
+    *,
+    limit: int = 5,
+    neighbours: int = 40,
+    max_length_ratio: float = 2.2,
+    min_consensus: float = 0.0,
+) -> list[Precedent]:
+    """How have Mexican subtitlers rendered something like this English line?
+
+    Neighbours are found by meaning, then their renderings are *grouped* rather than
+    listed row by row. Grouping matters for more than tidiness: about one row in five of
+    the underlying corpus is misaligned, and a misaligned row is nearly always a lone
+    reading of an English line that several other rows agree on. Ranking by agreement
+    pushes that noise down without needing to detect it.
+
+    Ordering is by similarity rounded to two decimals, then by agreement: neighbours that
+    are equally close should be separated by how many translators chose the reading, not
+    by the fourth decimal of a cosine.
+
+    `min_consensus` drops readings that too few translators agree with. It defaults to
+    **off**, because no threshold here has been tuned against a labelled set — the lever
+    is exposed so a caller can use it deliberately, not presented as a solved filter.
+    A length filter drops the crudest misalignments up front; it does not catch them all
+    (see CORPUS.md), so a citation still has to be verified before a person sees it.
+    """
+    ch = client()
+    vector = embed_one(cue)
+
+    rows = ch.query(
+        """
+        SELECT c.en, c.es, min(c.pair_id) AS pair_id, any(c.doc_id) AS doc_id,
+               count() AS times, n.d AS distance
+        FROM (
+            SELECT text, cosineDistance(embedding, {vec:Array(Float32)}) AS d
+            FROM mx_embeddings
+            ORDER BY d ASC
+            LIMIT {n:UInt32}
+        ) AS n
+        INNER JOIN mx_corpus AS c ON c.en = n.text
+        WHERE length(c.es) <= length(c.en) * {ratio:Float64}
+          AND length(c.en) <= length(c.es) * {ratio:Float64}
+        GROUP BY c.en, c.es, n.d
+        ORDER BY distance ASC, times DESC
+        """,
+        parameters={"vec": vector, "n": neighbours, "ratio": max_length_ratio},
+    ).result_rows
+
+    totals: dict[str, int] = {}
+    for english, _spanish, _pid, _did, times, _d in rows:
+        totals[english] = totals.get(english, 0) + times
+
+    ranked = sorted(
+        rows,
+        key=lambda r: (-round(1.0 - float(r[5]), 2),
+                       -(r[4] / totals[r[0]] if totals[r[0]] else 0),
+                       -r[4]),
+    )
+
+    seen: set[str] = set()
+    out: list[Precedent] = []
+    for english, spanish, pair_id, doc_id, times, distance in ranked:
+        if spanish in seen:
+            continue
+        if totals[english] and times / totals[english] < min_consensus:
+            continue
+        seen.add(spanish)
+        out.append(Precedent(
+            english=english, spanish=spanish, pair_id=int(pair_id), doc_id=int(doc_id),
+            times=int(times), english_times=totals[english],
+            similarity=round(1.0 - float(distance), 3),
+            exact=english.strip().lower() == cue.strip().lower(),
+        ))
+        if len(out) >= limit:
+            break
+    return out

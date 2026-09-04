@@ -51,10 +51,16 @@ demo: env up install schema load ## Full cold start to a queryable corpus
 test: ## Run the test suite
 	uv run pytest -q
 
-.PHONY: help env up down nuke install schema load serve ask eval sweep demo test build-mx build-mx-fast
+.PHONY: help env up down nuke install schema load serve ask eval sweep demo test build-mx build-mx-fast embed-mx precedent
 
 build-mx: ## Build the Mexican corpus from the loaded parallel corpus (~75 s)
 	uv run subtext build-mx
 
 build-mx-fast: ## Same, but use the shipped document boundaries instead of deriving them
 	uv run subtext build-mx --from-index data/mx_docs.tsv
+
+embed-mx: ## Embed the English side of the Mexican corpus (local model, ~85 s, no API cost)
+	uv run subtext embed-mx
+
+precedent: ## Find Mexican precedent for a line: make precedent Q="Hurry up!"
+	uv run subtext precedent "$(Q)"

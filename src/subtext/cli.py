@@ -277,6 +277,37 @@ def cmd_build_mx(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_embed_mx(args: argparse.Namespace) -> int:
+    """Embed the English side of the Mexican corpus. Local model, no API cost."""
+    from .embeddings import embed_column
+
+    print(f"embedding {args.column} of {args.source} -> {args.target}")
+    stats = embed_column(source=args.source, column=args.column, target=args.target,
+                         batch_size=args.batch_size, min_length=args.min_length)
+    width = max(len(k) for k in stats)
+    for key, value in stats.items():
+        print(f"  {key:<{width}}  {value}")
+    return 0
+
+
+def cmd_precedent(args: argparse.Namespace) -> int:
+    """Show how Mexican subtitlers rendered something like this English line."""
+    from .retrieval import find_precedent
+
+    results = find_precedent(args.cue, limit=args.limit)
+    if not results:
+        print("no precedent found")
+        return 1
+    print(f"EN  {args.cue}\n")
+    for p in results:
+        tag = "exact" if p.exact else f"{p.similarity:.3f}"
+        print(f"  [{tag:>5}] {p.spanish}")
+        print(f"          from: {p.english}")
+        agree = f"{p.times}/{p.english_times} translators" if p.english_times > 1 else "1 example"
+        print(f"          {p.citation} · {agree}\n")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="subtext",
@@ -366,6 +397,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--write-index", metavar="TSV",
         help="write the resulting document ranges out as a redistributable TSV")
     p_mx.set_defaults(func=cmd_build_mx)
+
+    p_emx = sub.add_parser(
+        "embed-mx",
+        help="embed the English side of the Mexican corpus (local model, no API cost)")
+    p_emx.add_argument("--source", default="mx_corpus")
+    p_emx.add_argument("--column", default="en")
+    p_emx.add_argument("--target", default="mx_embeddings")
+    p_emx.add_argument("--batch-size", type=int, default=10_000)
+    p_emx.add_argument("--min-length", type=int, default=1,
+                       help="skip values shorter than this many characters")
+    p_emx.set_defaults(func=cmd_embed_mx)
+
+    p_prec = sub.add_parser(
+        "precedent",
+        help="how have Mexican subtitlers rendered a line like this?")
+    p_prec.add_argument("cue", help="an English subtitle line")
+    p_prec.add_argument("--limit", type=int, default=5)
+    p_prec.set_defaults(func=cmd_precedent)
 
     p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")
     p_eval.add_argument("--golden", default=None)
