@@ -50,5 +50,5 @@ def settings() -> Settings:
             "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
         ),
         embedding_dim=int(os.getenv("EMBEDDING_DIM", "384")),
-        gemini_model=os.getenv("SUBTEXT_MODEL", "gemini-2.5-flash"),
+        gemini_model=os.getenv("SUBTEXT_MODEL", "gemini-3.8-flash"),
     )
