@@ -8,7 +8,10 @@ pinned by tests rather than inspected by eye in a demo.
 import pytest
 
 from subtext.localise import (
+    INSTRUCTION,
     MIN_PHRASE_SUPPORT,
+    NOT_MEXICAN,
+    WATCH,
     Evidence,
     PhraseHit,
     candidate_phrases,
@@ -18,14 +21,44 @@ from subtext.localise import (
 
 
 # ---- the register gate --------------------------------------------------------------
+#
+# Bruno caught the original version of this gate rejecting "Eso a mí me vale madre." and
+# "Súbete al coche, güey." Both are real corpus lines and both are unmistakably Mexican.
+# The gate had been built on the DETECTOR's 66-word peninsular list, which is sound for
+# scoring a 1,000-line window in bulk and wrong as a rule about one line: 59 of those 66
+# words appear in Mexican Spanish. These tests exist so that never comes back.
 
-def test_peninsular_spanish_is_rejected():
-    r = check_register("Vale tío, qué guay, cojo el coche.")
-    assert not r.ok
-    assert "vale" in r.peninsular and "tio" in r.peninsular and "guay" in r.peninsular
+def test_spain_second_person_plural_is_rejected():
+    """Grammar, not vocabulary. Mexico does not have vosotros at all."""
+    r = check_register("Vosotros llegáis tarde.")
+    assert not r.ok and "vosotros" in r.not_mexican
 
 
-def test_mexican_spanish_passes():
+def test_words_absent_from_the_corpus_are_rejected():
+    """`currar` occurs 0 times in 718,925 lines of Mexican Spanish."""
+    assert not check_register("Vamos a currar un poco.").ok
+
+
+@pytest.mark.parametrize("line,word", [
+    ("Eso a mí me vale madre.", "vale"),          # 924 occurrences; 156 are "me vale"
+    ("Súbete al coche, güey.", "coche"),          # 373 occurrences
+    ("Vale la pena intentarlo.", "vale"),         # the verb valer, not Spain's "ok"
+    ("Mi tío vive en el piso de arriba.", "tio"), # tío 450, piso 297
+])
+def test_peninsular_leaning_words_mexicans_actually_write_are_never_rejected(line, word):
+    """The failure Bruno caught. A false rejection breaks the system's core promise --
+    that its output is grounded in attested Mexican usage -- so it is the worse error."""
+    r = check_register(line)
+    assert r.ok, f"{line!r} was rejected"
+    assert word in r.watch, f"{word} should still be reported, just not fatal"
+
+
+def test_a_watched_word_is_reported_not_hidden():
+    """Allowed is not the same as invisible: a human should still see it."""
+    assert "coche" in check_register("Súbete al coche.").watch
+
+
+def test_mexican_spanish_passes_and_is_credited():
     r = check_register("Órale güey, ahorita nos vemos.")
     assert r.ok
     assert "orale" in r.mexican and "guey" in r.mexican
@@ -34,24 +67,33 @@ def test_mexican_spanish_passes():
 def test_neutral_spanish_passes_with_no_markers():
     """Not every line should be slang. Neutral is a correct answer, not a failure."""
     r = check_register("No te preocupes, ya vamos.")
-    assert r.ok
-    assert not r.mexican and not r.peninsular
+    assert r.ok and not r.mexican and not r.watch
 
 
 def test_the_gate_is_accent_insensitive():
-    """The corpus is accent-stripped; the gate must be too, or 'tío' walks straight past."""
-    assert not check_register("Qué pasa, tío.").ok
-    assert not check_register("Que pasa, tio.").ok
+    """The corpus is accent-stripped; the gate must be too, or a form walks straight past."""
+    assert not check_register("Vosotros sabéis.").ok
+    assert not check_register("Vosotros sabeis.").ok
 
 
 def test_markers_must_be_whole_words():
-    """'vale' inside 'equivale' is not Spain, and must not fail an innocent line."""
-    assert check_register("Eso equivale a lo mismo.").ok
+    """'mola' inside 'molalidad' is not Spain, and must not fail an innocent line."""
+    assert check_register("Midieron la molalidad de la muestra.").ok
 
 
-def test_a_single_peninsular_marker_is_enough_to_fail():
-    """The one promise this system makes is no peninsular leakage."""
-    assert not check_register("Ahorita agarro el coche, güey.").ok
+def test_the_hard_list_stays_small():
+    """It is a blocklist against a living language. Growth should require evidence, and a
+    passing test is not evidence -- re-derive from the corpus before adding anything."""
+    assert len(NOT_MEXICAN) <= 30
+    assert set(NOT_MEXICAN).isdisjoint(WATCH)
+
+
+def test_the_instruction_does_not_ban_words_mexicans_use():
+    """The prompt used to tell the model 'never use coche'. It is in the corpus 373 times."""
+    banned_line = [l for l in INSTRUCTION.splitlines() if "Avoid vocabulary" in l]
+    assert banned_line, "the instruction should name what to avoid"
+    assert "coche" not in "".join(banned_line)
+    assert "vale," not in "".join(banned_line)
 
 
 # ---- phrase selection ---------------------------------------------------------------

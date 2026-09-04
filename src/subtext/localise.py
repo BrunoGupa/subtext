@@ -74,25 +74,78 @@ class Evidence:
         return max(usable, key=lambda p: (p.words, p.support)) if usable else None
 
 
+#: Forms a Mexican subtitler does not write. This list is SHORT on purpose, and it is
+#: derived from the corpus rather than from intuition -- see the long note below.
+#:
+#: Two kinds of thing qualify:
+#:
+#: 1. Spain's second-person-plural morphology. `vosotros`/`vuestro` is grammar, not word
+#:    choice, and Mexico does not have it. The 59 lines carrying it in `mx_corpus` are
+#:    demonstrably the documented contamination, not usage -- they come with Spain verb
+#:    forms attached ("llegáis tarde", "¿qué esperáis?", "me hacéis falta").
+#: 2. Vocabulary attested at most twice in 718,925 lines of Mexican Spanish. At that rate
+#:    the occurrences are more likely to BE the 0.46% peninsular leak than evidence of
+#:    Mexican usage, so rejecting them is safe in both directions.
+#:
+#: Measured 2026-09-04 against mx_corpus. Re-derive after any corpus rebuild with
+#: `sql/peninsular_rates.sql`.
+NOT_MEXICAN: tuple[str, ...] = (
+    # Spain's 2nd person plural -- grammar, not vocabulary
+    "vosotros", "vuestro", "vuestra", "vuestros", "vuestras",
+    # 0 occurrences in 718,925 lines
+    "chorrada", "currar", "curro", "flipante", "flipar", "flipas", "mogollon",
+    # 1-2 occurrences
+    "cabreado", "cabrear", "cutre", "fontanero", "gilipolleces", "majo", "maja",
+    "molar", "mola", "pajita", "pijo", "aparcar", "chavales",
+)
+
+#: Peninsular-*leaning* vocabulary that Mexicans nonetheless write. Reported, NEVER
+#: rejected. Getting this distinction wrong is the single easiest way to make this system
+#: worse than no system, so the reasoning is recorded here rather than in a commit message.
+#:
+#: The detector lexicon in `ingest/mexican.py` marks 66 words as peninsular. That list is
+#: sound for what it does: score a *1,000-line window* and compare totals with a 2:1 ratio.
+#: In bulk, over that much text, `coche` really is 2.6x rarer in Mexican productions.
+#:
+#: It is wrong as a rule about a *single line*, and the corpus says so plainly: **59 of
+#: those 66 words appear in Mexican Spanish**. Only 7 never do.
+#:
+#:     vale   924 occurrences      tio   450      coche  373      piso  297
+#:
+#: Worse, two of them are more common in Mexican productions than in the corpus at large
+#: (`vales` 2.03x, `cazadora` 2.11x), and `vale` is not even one word: of its 924
+#: occurrences, at least 374 are the verb *valer* or the Mexican idiom -- **156 are
+#: "me vale"**, as in *me vale madre*. A gate built on the detector list rejects
+#: "Eso a mí me vale madre." and "Súbete al coche, güey." Both are real corpus lines.
+#: Both are unmistakably Mexican. That gate would have been worse than none.
+WATCH: tuple[str, ...] = tuple(
+    w for w in PENINSULAR if w not in set(NOT_MEXICAN)
+)
+
+
 @dataclass(frozen=True)
 class RegisterReport:
-    """The deterministic gate. No model judges the output; the lexicon does."""
+    """The deterministic gate. No model judges the output; measured usage does."""
 
-    peninsular: tuple[str, ...] = ()
+    not_mexican: tuple[str, ...] = ()
+    watch: tuple[str, ...] = ()
     mexican: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
-        """A single peninsular marker fails it. That is the one thing we promise."""
-        return not self.peninsular
+        """Only forms Mexicans genuinely do not write can fail a line."""
+        return not self.not_mexican
 
     @property
     def summary(self) -> str:
-        if self.peninsular:
-            return f"peninsular markers present: {', '.join(self.peninsular)}"
+        parts = []
+        if self.not_mexican:
+            parts.append(f"NOT Mexican: {', '.join(self.not_mexican)}")
         if self.mexican:
-            return f"clean, Mexican markers: {', '.join(self.mexican)}"
-        return "clean, no marked register either way (neutral Spanish)"
+            parts.append(f"Mexican markers: {', '.join(self.mexican)}")
+        if self.watch:
+            parts.append(f"peninsular-leaning (allowed): {', '.join(self.watch)}")
+        return " · ".join(parts) if parts else "clean, neutral Spanish"
 
 
 def _padded(text: str) -> str:
@@ -106,15 +159,17 @@ def _padded(text: str) -> str:
 
 
 def check_register(spanish: str) -> RegisterReport:
-    """Which register markers does this Spanish actually contain?
+    """Which register markers does this Spanish contain, and which of them disqualify it?
 
-    Uses the same word lists that selected the corpus, so the gate and the corpus cannot
-    disagree about what "Mexican" means.
+    Only `NOT_MEXICAN` disqualifies. `WATCH` words are counted and shown so a human can
+    see them, but they never fail a line, because Mexicans write them.
     """
     haystack = _padded(spanish)
+    hit = lambda words: tuple(w for w in words if f" {w} " in haystack)
     return RegisterReport(
-        peninsular=tuple(w for w in PENINSULAR if f" {w} " in haystack),
-        mexican=tuple(w for w in MEXICAN if f" {w} " in haystack),
+        not_mexican=hit(NOT_MEXICAN),
+        watch=hit(WATCH),
+        mexican=hit(MEXICAN),
     )
 
 
@@ -188,9 +243,12 @@ The evidence comes in two kinds and they are not equal:
 Rules:
 - Output ONLY the Spanish line. No quotes, no explanation, no alternatives, no notes.
 - Keep it the length of a subtitle. If the English is short, the Spanish is short.
-- Use `ustedes`, never `vosotros`.
-- Never use peninsular vocabulary: vale, tío, guay, coche, joder, gilipollas, cazadora,
-  ordenador, móvil, piso, currar, mola, flipar.
+- Use `ustedes` and its verb forms, never `vosotros`/`vuestro`. This is grammar: Mexico
+  does not have Spain's second person plural at all.
+- Avoid vocabulary Mexican subtitlers do not write: currar, flipar, mola, cutre, chorrada,
+  mogollón, aparcar, majo, pijo, cabrear, fontanero, pajita, chavales.
+- Do NOT avoid a word merely because Spain also uses it. `coche` appears 373 times in this
+  corpus and `vale` 924. Mexicans write them. Follow the evidence, not a blocklist.
 - Do not add slang the evidence does not support. A neutral line translated neutrally is
   correct. Reaching for `güey` or `órale` where no evidence shows them is the failure mode
   this whole system exists to prevent.

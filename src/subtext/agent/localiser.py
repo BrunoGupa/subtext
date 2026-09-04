@@ -98,7 +98,8 @@ class RegisterGate(BaseAgent):
         report = check_register(draft)
 
         actions.state_delta["register"] = report.summary
-        actions.state_delta["peninsular"] = list(report.peninsular)
+        actions.state_delta["not_mexican"] = list(report.not_mexican)
+        actions.state_delta["watch"] = list(report.watch)
         actions.state_delta["mexican"] = list(report.mexican)
 
         if report.ok:
@@ -111,7 +112,7 @@ class RegisterGate(BaseAgent):
         # and the draft is returned with its warning attached rather than silently kept.
         actions.state_delta["final"] = draft
         actions.state_delta["retry_note"] = RETRY_SUFFIX.format(
-            markers=", ".join(report.peninsular), previous=draft
+            markers=", ".join(report.not_mexican), previous=draft
         )
         yield _event(ctx, self.name, f"rejected -- {report.summary}", actions)
 
@@ -151,7 +152,8 @@ class Localised:
     cue: str
     spanish: str = ""
     register: str = ""
-    peninsular: list[str] = field(default_factory=list)
+    not_mexican: list[str] = field(default_factory=list)
+    watch: list[str] = field(default_factory=list)
     mexican: list[str] = field(default_factory=list)
     phrases: int = 0
     neighbours: int = 0
@@ -160,7 +162,7 @@ class Localised:
 
     @property
     def clean(self) -> bool:
-        return not self.peninsular
+        return not self.not_mexican
 
 
 async def localise_async(
@@ -188,7 +190,8 @@ async def localise_async(
         cue=cue,
         spanish=(state.get("final") or state.get("draft") or "").strip().strip('"'),
         register=state.get("register", ""),
-        peninsular=list(state.get("peninsular", [])),
+        not_mexican=list(state.get("not_mexican", [])),
+        watch=list(state.get("watch", [])),
         mexican=list(state.get("mexican", [])),
         phrases=int(state.get("evidence_phrases", 0)),
         neighbours=int(state.get("evidence_neighbours", 0)),

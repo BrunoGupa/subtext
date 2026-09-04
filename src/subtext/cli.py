@@ -325,7 +325,7 @@ def cmd_localise(args: argparse.Namespace) -> int:
     print(f"    register : {result.register}")
     print(f"    passes   : {result.passes} Gemini call(s)")
     if not result.clean:
-        print(f"    WARNING  : peninsular markers survived the retry: {', '.join(result.peninsular)}")
+        print(f"    WARNING  : non-Mexican forms survived the retry: {', '.join(result.not_mexican)}")
     return 0 if result.clean else 1
 
 

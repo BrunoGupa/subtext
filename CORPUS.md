@@ -319,6 +319,46 @@ $ uv run subtext precedent "What is up, dude?"
   [0.878] ¿Qué pedo güey?      pair_id 71753840
 ```
 
+#### The lexicon is a bulk signal, not a rule about one line
+
+The 66 peninsular words in `ingest/mexican.py` are sound for what they do: score a
+**1,000-line window** and compare totals with a 2:1 ratio. In bulk over that much text
+`coche` really is 2.6× rarer in Mexican productions.
+
+They are wrong as a test of a single line, and the corpus says so plainly. **59 of the 66
+appear in Mexican Spanish**; only 7 never do:
+
+| word | occurrences in `mx_corpus` |
+|---|---|
+| vale | 924 |
+| tío | 450 |
+| **coche** | **373** |
+| piso | 297 |
+| tía | 225 |
+
+Two are *more* common in Mexican productions than in the corpus at large (`vales` 2.03×,
+`cazadora` 2.11×). And `vale` is not one word: of its 924 occurrences at least 374 are the
+verb *valer* or Mexican idiom — **156 are `me vale`**, as in *me vale madre*.
+
+A register gate built on that list therefore rejected `Eso a mí me vale madre.` and
+`Súbete al coche, güey.` Both are real corpus lines. Both are unmistakably Mexican. The
+gate was worse than no gate, because the system's promise is that its output is grounded
+in attested usage — and it was rejecting attested usage.
+
+`localise.py` now separates them. **`NOT_MEXICAN`** (25 forms) can fail a line and holds
+only two kinds of thing: Spain's second-person-plural morphology, which Mexico does not
+have at all — the 59 `vosotros` lines in the corpus carry Spain verb forms with them
+(*llegáis*, *esperáis*, *hacéis*) and are the documented contamination, not usage — and
+words attested at most twice in 718,925 lines, where an occurrence is likelier to *be* the
+0.46% leak than evidence of usage. Everything else is **`WATCH`**: reported to a human,
+never fatal.
+
+Borderline Spain-only words (`guay` 9, `gilipollas` 11, `ordenador` 11) are deliberately
+left in `WATCH`. A frequency cut alone cannot separate them from homographs that mean
+something else entirely in Mexico — `tías` is *aunts*, and `pija` is not "posh" — so the
+cautious side is the correct side. Re-derive with `sql/peninsular_rates.sql` after any
+rebuild; a passing test is not evidence for adding a word.
+
 #### What it still cannot do
 
 Marker density finds the boundary between Mexican and *non*-Mexican content. Where two
