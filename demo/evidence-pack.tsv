@@ -1,0 +1,21 @@
+pair_id	doc_id	english	mexican_spanish	marker	note
+75417388	451	Hi. What's up?	Hola. ¿Qué onda?	que onda	Mexican greeting; neutral Spanish would be ¿Qué pasa?
+98199714	634	- What's up, dude?	¿Qué onda, güey?	que onda / guey	güey is the Mexican address term; Spain uses tío
+88037122	543	Your jacket is in the dresser.	Oye, tu chamarra está en el vestidor.	chamarra	Mexico says chamarra for jacket; Spain says cazadora
+32129062	195	A leather jacket?	¿Una chamarra de piel?	chamarra	same choice, different film
+89999468	575	-Cool, brother.	- Chido, carnal.	chido / carnal	chido = cool; carnal = brother/mate
+84198697	512	-That's cool.	- Qué chido.	chido	compare the next row: two Mexican options for the same English
+81566378	486	That's cool.	Qué padre.	que padre	qué padre = how great, unmistakably Mexican
+82364917	497	Hurry up, you moron.	¡Órale, güey!	orale / guey	órale as an imperative
+91659625	583	If you say so.	Órale, pues.	orale	órale as agreement, not urgency
+81923149	491	I'll put it on in a minute.	Ahorita me lo pongo.	ahorita	ahorita = in a moment; attested 1,444 times in this corpus
+83696410	511	Because... I want to talk to you.	Porque quiero platicar contigo.	platicar	Mexico platica, Spain habla
+101991264	674	Same. You and I have to talk.	- Tenemos que platicar, ven.	platicar	same verb, conversational
+96499626	619	Your hair looks amazing!	No manches, tu pelo está increíble.	no manches	the clean euphemism for the stronger form
+101696125	672	I don't know, Amanda.	No manches, Amanda.	no manches	used as an interjection of disbelief
+45146124	299	- You like my car?	- ¿Te gusta mi auto?	auto	Mexico: auto
+22716530	120	My car is misfiring.	Mi carro viene fallando.	carro	Mexico: carro -- the same object, a second Mexican option
+66249035	409	-You can keep my car.	-Te puedes quedar con mi coche.	coche	and coche too: the corpus does not pretend the choice is uniform
+31983405	194	You guys are serious.	Ustedes hablan en serio.	ustedes	ustedes, never vosotros -- 59 vosotros in 718,925 lines
+83069810	503	I'll see you later.	Nos vemos al rato.	al rato	al rato = later, Mexican
+98198578	634	How are you, my friend?	¿Cómo estás tú, güey?	guey	güey where a dictionary would say amigo

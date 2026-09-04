@@ -257,6 +257,26 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_build_mx(args: argparse.Namespace) -> int:
+    """Rebuild the Mexican corpus. See CORPUS.md section 4."""
+    from . import db
+    from .ingest.mexican import build, write_index
+
+    index = Path(args.from_index) if args.from_index else None
+    if index and not index.exists():
+        print(f"no such index: {index}")
+        return 1
+    print("building the Mexican corpus" + (f" from {index}" if index else " from scratch"))
+    stats = build(from_index=index, skip_scan=args.skip_scan)
+    width = max(len(k) for k in stats)
+    for key, value in stats.items():
+        print(f"  {key:<{width}}  {value}")
+    if args.write_index:
+        n = write_index(db.client(), args.write_index)
+        print(f"  wrote {n} document ranges to {args.write_index}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="subtext",
@@ -332,6 +352,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_serve.add_argument("--port", type=int, default=8000)
     p_serve.add_argument("--reload", action="store_true")
     p_serve.set_defaults(func=cmd_serve)
+
+    p_mx = sub.add_parser(
+        "build-mx",
+        help="build the Mexican-Spanish corpus from the loaded parallel corpus")
+    p_mx.add_argument(
+        "--from-index", metavar="TSV",
+        help="use shipped document boundaries (data/mx_docs.tsv) instead of deriving them")
+    p_mx.add_argument(
+        "--skip-scan", action="store_true",
+        help="reuse an existing win_scores table instead of rescanning the corpus")
+    p_mx.add_argument(
+        "--write-index", metavar="TSV",
+        help="write the resulting document ranges out as a redistributable TSV")
+    p_mx.set_defaults(func=cmd_build_mx)
 
     p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")
     p_eval.add_argument("--golden", default=None)

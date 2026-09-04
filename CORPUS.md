@@ -227,7 +227,7 @@ Measured against the grid build it replaces:
 | Mexican markers | 30,740 | **32,074** (+4.3%) |
 | marker density | 29.9 / 1k | **44.6 / 1k** (+49%) |
 | peninsular contamination | 0.485% | **0.459%** |
-| held-out gold recall | 73.0% | **75.9%** |
+| gold recall | 73.0% | **76.0%** |
 | median document | 1,000 (grid artefact) | **700** |
 
 Fewer lines but *more* markers, because refinement extends as well as trims — it recovers
@@ -240,6 +240,32 @@ boundaries for the median document** — the edges are a property of the corpus,
 thresholds. That agreement is the evidence the method works; the specific numbers are not
 load-bearing. Chains that trim harder (7/4/3/2 at the same windows) over-erode: median
 575 lines, well under any real film.
+
+#### Building it, and the shipped index
+
+One command rebuilds every table above from a loaded `aligned_lines`:
+
+```bash
+uv run subtext build-mx                                  # ~75 s, one full scan
+uv run subtext build-mx --from-index data/mx_docs.tsv    # ~60 s, skips the detection
+```
+
+The lexicons, the threshold and the refinement chain all live in
+`src/subtext/ingest/mexican.py`, so the build is reproducible from the repository alone —
+it does not depend on a notebook or a shell history. Both forms produce the same tables:
+697 documents, 718,925 lines, 32,074 Mexican markers, 372,575 phrases.
+
+**`data/mx_docs.tsv` is the boundary index**, 697 rows of integers, 23 KB. It carries no
+text, so redistributing it raises none of the questions in §1. It is valid on any machine
+because OPUS v2024 is a frozen release pinned by sha256 in `subtext fetch`, and `pair_id`
+is a deterministic counter in `ingest/parallel.py` — so a range denotes the same lines
+everywhere. Without that pinning the index would be meaningless to anyone else.
+
+What it buys is verification rather than time: a reader can check which ranges we claim
+are Mexican without re-deriving them or trusting the lexicon. It does not avoid the 4.2 GB
+download, because the Spanish text is what the retrieval actually cites.
+
+`demo/` holds 20 cited rows of that retrieval output for readers who will not run anything.
 
 #### What it still cannot do
 
