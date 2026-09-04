@@ -134,6 +134,125 @@ The OPUS folder name is one of two shapes, and both decode:
 Composition: **91,762 TV episodes** across 5,045 series (54.6% of lines) and
 **43,148 films** (45.1%). 543 documents — 0.4% — fail to resolve.
 
+### `phrase_index` — 372,575 rows, 5.12 MB
+
+Built by `sql/phrase_index.sql` from `mx_corpus` in about a second. That file is
+**generated** — regenerate it with `python -m subtext.tokenizer > sql/phrase_index.sql`
+after any change to the tokenizer, and rebuild. Every English line is
+cut into all its runs of 1–4 words; each run is counted, and runs seen fewer than 3 times
+are dropped.
+
+| Column | Notes |
+|---|---|
+| `ng` | The phrase, lowercased |
+| `n` | How many words it holds, 1–4 |
+| `support` | How many lines contain it |
+| `ex_pair_id` | One example line, to join back to `mx_corpus` |
+
+This is the run-time lookup table: given an English cue, it finds attested Mexican
+precedent without scanning a million rows per subtitle. The retrieval unit is the
+**phrase, not the line** — of ~68.3M distinct English lines only 0.03% have any Mexican
+rendering, so whole-line lookup returns nothing ~999 times in 1000. Phrases recur.
+
+#### Tokenization: an apostrophe inside a word is kept
+
+`What's up, dude?` tokenizes to `[what's, up, dude]`. The regex is
+`[a-z]+(?:'[a-z]+)?` applied to the lowercased line.
+
+**Do not "simplify" this by deleting the apostrophe.** An earlier build did
+(`replaceAll(en, '\'', '')`), which merges contractions into unrelated English words:
+
+| Merged key | Is really |
+|---|---|
+| `were` 22,951 | `we're` 10,499 **+** `were` 12,454 |
+| `its` 41,163 | `it's` 40,006 + `its` 1,138 |
+| `ill` 14,845 | `i'll` 14,664 + `ill` 189 |
+| `hell` 4,376 | `he'll` 1,321 + `hell` 3,056 |
+
+`we're` is the worst: a near 50/50 blend of two meanings that take different Spanish
+(*somos/estamos* vs *eran/estaban*). Precedent retrieved under that key is evidence for
+nothing.
+
+**Why not the Penn Treebank convention?** PTB (Marcus et al. 1993) — what NLTK, CoreNLP,
+spaCy and the Moses tokenizer implement — splits the clitic but keeps its apostrophe:
+`what's` -> `what` + `'s`. That also avoids the collision, and it is the more standard
+choice. We keep the token whole instead because:
+
+1. The retrieval unit is a surface phrase capped at n=4. Splitting spends that budget on
+   grammar: `what's up dude` is 3 words but 4 PTB tokens, so a 4-gram covers less text.
+2. A bare `'s` is near the top of the English frequency list and carries almost no
+   retrieval signal. It would dominate the `n=1` table.
+3. We match phrasing precedent, not syntax. Nothing downstream parses.
+
+**The rule that matters more than the choice:** the query path must tokenize *identically*
+to the build (Manning, Raghavan & Schütze, *Introduction to Information Retrieval*, §2.2).
+If lookup re-implements this even slightly differently, every contraction silently misses —
+no error, no empty result, just quietly worse translations.
+
+So the rule lives in exactly one place, `src/subtext/tokenizer.py`. `tokens()` is the Python
+side; `clickhouse_tokens_sql()` derives the SQL expression from the same pattern literal, and
+`phrase_index_sql()` generates the whole build file. The two sides are checked against each
+other on 3,000 random corpus rows: 0 mismatches. `tests/test_tokenizer.py` pins the behaviour,
+including one case per contraction collision listed above.
+
+**Scope:** the regex matches the ASCII apostrophe only. That is safe for this corpus —
+`mx_corpus` holds 239,944 lines with an ASCII apostrophe and **zero** typographic ones (U+2019), because
+OPUS normalized them. Incoming `.srt` files are not normalized, so `normalize()` folds the
+five variants that turn up in subtitle files (`’ ʼ ′ \` ´`) onto `'` before matching.
+
+### `mx_corpus` — 718,925 lines, and `mx_docs` — 697 documents
+
+The Mexican-Spanish subset, found by scoring the corpus for register markers and keeping
+the dense runs. Built by `sql/` + `src/subtext/boundaries.py`; `mx_docs` gives each
+document's `pair_id` range, `mx_corpus` every line inside those ranges.
+
+#### Boundaries are refined, not grid-aligned
+
+The detector scores fixed 1000-line blocks, so a document's edge was only known to
+±1000 lines. 523 of the 697 documents were a *single* block — both edges unknown inside
+the same 1000 lines. **84.7% of the old corpus sat in such an edge zone**, so this was a
+correction, not a polish.
+
+Each edge is now re-tested at shrinking windows with falling thresholds — 10 markers per
+1000 lines, then 7 per 500, 3 per 250, 2 per 125, 1 per 50 — extending outward while a
+neighbouring window still passes, then eroding inward while the leading one fails. The
+threshold has to fall with the window because density does not survive bisection: 1000
+lines carry ~45 markers, 50 lines carry ~2.
+
+Measured against the grid build it replaces:
+
+| | grid | refined |
+|---|---|---|
+| lines | 1,028,000 | **718,925** (−30%) |
+| Mexican markers | 30,740 | **32,074** (+4.3%) |
+| marker density | 29.9 / 1k | **44.6 / 1k** (+49%) |
+| peninsular contamination | 0.485% | **0.459%** |
+| held-out gold recall | 73.0% | **75.9%** |
+| median document | 1,000 (grid artefact) | **700** |
+
+Fewer lines but *more* markers, because refinement extends as well as trims — it recovers
+Mexican content the 1000-line grid cut off. Real subtitle documents run p25 500 / median
+703 / p75 942 lines (`corpus_films`), which the refined distribution now matches; the grid
+put 523 documents at exactly 1,000.
+
+**Why this chain.** 156 monotone chains were swept. The ten best produce **identical
+boundaries for the median document** — the edges are a property of the corpus, not of the
+thresholds. That agreement is the evidence the method works; the specific numbers are not
+load-bearing. Chains that trim harder (7/4/3/2 at the same windows) over-erode: median
+575 lines, well under any real film.
+
+#### What it still cannot do
+
+Marker density finds the boundary between Mexican and *non*-Mexican content. Where two
+Mexican productions sit adjacent in the corpus there is no density change to find, so they
+stay merged: **64 documents of 2,000+ lines hold 35.8% of the corpus**. For grounding
+translations in attested Mexican Spanish that costs nothing — every line in them is still
+Mexican. It only breaks *per-document* claims. Splitting those needs a different signal;
+character names are the obvious candidate, since a name runs through one production and
+stops dead at its end.
+
+The old build is kept as `mx_corpus_grid` / `mx_docs_grid` for comparison.
+
 ### `imdb_titles`, `imdb_akas`
 
 Straight loads of the IMDb TSVs. Load them **positionally** (`FORMAT TSV` after
