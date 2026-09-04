@@ -286,7 +286,8 @@ def format_evidence(evidence: Evidence) -> str:
 
 RETRY_SUFFIX = """\
 
-Your previous attempt was rejected: it contained peninsular Spanish ({markers}).
-Those words are from Spain and must not appear. Rewrite the line in Mexican Spanish.
+Your previous attempt was rejected. It used forms Mexican subtitlers do not write:
+{markers}. Rewrite the line in Mexican Spanish, keeping the same meaning and length.
+Do not over-correct: only those forms are the problem.
 Previous attempt: {previous}
 """
