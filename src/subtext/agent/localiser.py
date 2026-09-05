@@ -46,11 +46,13 @@ from ..localise import (
 #: instead of *"Ahorita."*, which the corpus attests 1,444 times. Grounding is the product;
 #: letting the model deliberate its way off the evidence defeats it.
 GENERATION_CONFIG = types.GenerateContentConfig(
-    # 0, not 0.2. With 0.2 the same cue gave different answers across runs -- "Show me the
-    # money!" came back translated once and left in English the next time. That is not the
-    # model weighing the evidence differently, it is sampling noise, and for a subtitle file
-    # two runs of the same input should agree.
-    temperature=0.0,
+    # Back to 0.2 at Bruno's call, and the argument for 0 does not survive scrutiny: its
+    # only justification was reproducibility, and temperature 0 does NOT deliver that here.
+    # Repeated calls still disagree across processes because reasoning runs despite
+    # thinking_budget=0 and takes a different path each time. Since determinism is not on
+    # offer either way, translation quality decides, and a little sampling reads better
+    # than a flat argmax.
+    temperature=0.2,
     # 2048, not the 256 that looks generous for a one-line answer. Measured 2026-09-04 on
     # gemini-3.8-flash with the real 1,018-token prompt:
     #
