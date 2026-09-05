@@ -46,7 +46,11 @@ from ..localise import (
 #: instead of *"Ahorita."*, which the corpus attests 1,444 times. Grounding is the product;
 #: letting the model deliberate its way off the evidence defeats it.
 GENERATION_CONFIG = types.GenerateContentConfig(
-    temperature=0.2,
+    # 0, not 0.2. With 0.2 the same cue gave different answers across runs -- "Show me the
+    # money!" came back translated once and left in English the next time. That is not the
+    # model weighing the evidence differently, it is sampling noise, and for a subtitle file
+    # two runs of the same input should agree.
+    temperature=0.0,
     # 2048, not the 256 that looks generous for a one-line answer. Measured 2026-09-04 on
     # gemini-3.8-flash with the real 1,018-token prompt:
     #
