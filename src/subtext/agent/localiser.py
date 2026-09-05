@@ -47,7 +47,18 @@ from ..localise import (
 #: letting the model deliberate its way off the evidence defeats it.
 GENERATION_CONFIG = types.GenerateContentConfig(
     temperature=0.2,
-    max_output_tokens=256,
+    # 2048, not the 256 that looks generous for a one-line answer. Measured 2026-09-04 on
+    # gemini-3.8-flash with the real 1,018-token prompt:
+    #
+    #     max_output_tokens=256   -> thoughts=205..245, and MAX_TOKENS truncation
+    #     max_output_tokens=2048  -> thoughts=None, clean STOP, 12 output tokens
+    #
+    # A tight cap does not merely clip the answer: with one set, the model reasons anyway
+    # despite thinking_budget=0, and those 240-odd thinking tokens are charged against the
+    # same cap, leaving ~11 for the reply. That is what cut "Le voy a hacer una oferta que"
+    # mid-sentence in the first run. The cap costs nothing when unused -- billing is on
+    # tokens produced (12), not on the ceiling.
+    max_output_tokens=2048,
     thinking_config=types.ThinkingConfig(thinking_budget=0),
 )
 
