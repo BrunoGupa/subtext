@@ -97,23 +97,14 @@ Vector search finds; SQL counts. Neither half answers the question alone.
 
 ## Measured, not asserted
 
-34 hand-labelled questions, 179 labelled line ids. Full tables and the failure analysis in
-[`evals/results.md`](evals/results.md).
+**The retrieval evaluation has been withdrawn (2026-09-07).** It ran against a synthetic
+sample corpus generated for this repository, and its "hand-labelled" golden set was labelled
+by the same process that wrote the dialogue. Numbers produced that way measure self-consistency,
+not retrieval quality, so they have been removed rather than restated with a caveat.
 
-| strategy | recall@10 | recall@20 | hit@10 | hit@20 |
-|---|---|---|---|---|
-| `line` | **0.510** | **0.650** | 0.800 | 0.833 |
-| `window3` | 0.517 | 0.607 | **0.900** | **0.933** |
-| `window5` | 0.479 | 0.544 | 0.867 | 0.933 |
-
-The two metrics disagree, and the disagreement is the point: windows reliably find the right
-*scene* and then spend the line budget on its neighbours. Which strategy is better depends on
-whether a model reads the context or a `GROUP BY` counts it.
-
-The distinction the eval is built around is **retrieval failure** (the answer never came back
-— recall@k) versus **generation failure** (it came back and the answer ignored it —
-faithfulness). Different bug, different fix, and one blended accuracy number would hide which
-one you have.
+What replaces it is measured against text this project did not write: the Spanish side of a
+human-translated subtitle corpus, used as a reference translation. That work is in progress and
+its numbers will appear here when they exist.
 
 ## Stack
 - **Gemini + Google ADK** — planning, tool selection, self-validation (hackathon requirement #1)

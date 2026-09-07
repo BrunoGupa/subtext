@@ -3,7 +3,23 @@ from pathlib import Path
 
 import pytest
 
-from subtext.evaluation import GoldenQuestion, cited_line_ids, load_golden, parse_strategy
+from subtext.evaluation import (
+    GOLDEN_PATH,
+    GoldenQuestion,
+    cited_line_ids,
+    load_golden,
+    parse_strategy,
+)
+
+#: The shipped golden set was withdrawn on 2026-09-07 (see `evals/README.md`): it was
+#: labelled by the same model that wrote the corpus it scored. The three tests below check
+#: the *shipped file*, so they have nothing to check until a replacement set exists. They
+#: are skipped rather than deleted, because the checks themselves are still the right ones
+#: to run against whatever set replaces it.
+needs_golden = pytest.mark.skipif(
+    not GOLDEN_PATH.exists(),
+    reason="no shipped golden set: withdrawn 2026-09-07, replacement not built yet",
+)
 
 
 def test_parse_strategy_labels():
@@ -18,6 +34,7 @@ def test_cited_line_ids_reads_the_forms_an_answer_actually_uses():
     assert cited_line_ids(text) == [7, 42, 103]
 
 
+@needs_golden
 def test_the_shipped_golden_set_meets_the_scoped_floor():
     questions = load_golden()
     assert len(questions) >= 30, "the CV claim needs at least 30 labelled questions"
@@ -28,6 +45,7 @@ def test_the_shipped_golden_set_meets_the_scoped_floor():
         assert q.kind in {"lookup", "semantic", "empty"}
 
 
+@needs_golden
 def test_golden_set_ids_point_at_real_lines():
     from subtext.ingest.sample import iter_lines
 
@@ -45,6 +63,7 @@ def test_golden_set_ids_point_at_real_lines():
             ), f"{question.id} filters to season {question.season} but expects other seasons"
 
 
+@needs_golden
 def test_empty_case_questions_expect_nothing():
     for question in load_golden():
         if question.kind == "empty":
