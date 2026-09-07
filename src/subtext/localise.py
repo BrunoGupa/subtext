@@ -33,6 +33,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Sequence
 
+from .address import Address, read_address
+from .frame import Frame
 from .ingest.mexican import MEXICAN, PENINSULAR
 from .tokenizer import MAX_N, clickhouse_haystack_sql, ngrams, tokens
 
@@ -42,13 +44,46 @@ MIN_SIMILARITY = 0.55
 #: Phrases seen fewer than this are too thin to quote as precedent.
 MIN_PHRASE_SUPPORT = 3
 
+#: A phrase must account for at least this much of the line it was found in before that
+#: line's Spanish is worth showing. Below it the phrase is a fragment and the Spanish is
+#: about something else -- this is the bound that stops `"you can't handle"` from being
+#: answered with `Nada más.`
+MIN_COVERAGE = 0.6
+
+#: Same bound `find_precedent` uses: a Spanish line this far out of proportion to its
+#: English is a misalignment, not a translation.
+MAX_LENGTH_RATIO = 2.2
+
+
+@dataclass(frozen=True)
+class Rendering:
+    """One Spanish rendering of a phrase, with what it is a rendering *of*.
+
+    `english` is the whole corpus line the Spanish came from, and it is carried because
+    the corpus offers no word alignment: a phrase lookup can only return the Spanish of
+    the *line* that contained the phrase, never the Spanish of the phrase alone. Hiding
+    that produced evidence like `"you can't handle"` -> `Nada más.`, presented to the
+    model as attested fact. Showing the English line next to the Spanish makes the
+    mismatch visible instead of laundering it, and `pair_id` makes it checkable.
+    """
+
+    spanish: str
+    count: int
+    pair_id: int
+    doc_id: int
+    english: str
+    #: How much of `english` the phrase accounts for, 0..1. At 1.0 the line *is* the
+    #: phrase and the Spanish really is the phrase's rendering; well below that, the
+    #: Spanish is the whole line's and the phrase is a fragment inside it.
+    coverage: float = 0.0
+
 
 @dataclass(frozen=True)
 class PhraseHit:
     phrase: str
     words: int
     support: int
-    renderings: tuple[tuple[str, int], ...] = ()
+    renderings: tuple[Rendering, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -58,6 +93,9 @@ class Evidence:
     cue: str
     phrases: tuple[PhraseHit, ...] = ()
     neighbours: tuple = ()  # tuple[Precedent, ...]; typed loosely to avoid a cycle
+    #: The scene this cue sits in, when v2 supplied one. `None` is v1: no scene, no
+    #: reranking, precedent ordered by similarity and agreement alone.
+    frame: Frame | None = None
 
     @property
     def is_empty(self) -> bool:
@@ -184,15 +222,30 @@ def candidate_phrases(cue: str, max_n: int = MAX_N) -> list[str]:
     return out
 
 
-def gather_evidence(cue: str, *, neighbours: int = 4, renderings: int = 3) -> Evidence:
-    """Retrieve precedent for one cue. Deterministic: same cue, same evidence.
+def _rank_key(form: Address, frame: Frame | None):
+    """How well a precedent's form fits the scene: 0 agrees, 1 says nothing, 2 contradicts.
 
-    Both indexes are consulted every time. They fail in opposite directions — phrases are
-    silent on new wording, neighbours always answer something — so asking only one leaves
-    a hole that the other covers.
+    Contradicting precedent is ranked down, never dropped. `Súbete al coche.` is a correct
+    Mexican line and stays visible in a `usted` scene; it just stops being the first thing
+    the model reads. Deleting it would hide the corpus behind a frame that one model call
+    produced, which is a worse failure than showing it in the wrong order.
+    """
+    if frame is None or not frame.constrains:
+        return 0
+    if form is Address.UNMARKED:
+        return 1
+    return 0 if form is frame.address else 2
+
+
+def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
+    """The attested-phrase half of the evidence, on its own.
+
+    Split out because the phrase channel says nothing about who is being addressed -- a
+    rendering of `"the truth"` is the same rendering whether the scene is tú or usted -- so
+    every reading of a cue wants the same phrase evidence, and fetching it once per reading
+    would ask the same question three times.
     """
     from .db import client
-    from .retrieval import find_precedent
 
     ch = client()
     phrases = candidate_phrases(cue)
@@ -210,20 +263,68 @@ def gather_evidence(cue: str, *, neighbours: int = 4, renderings: int = 3) -> Ev
             # Spanish is buried in unrelated words -- "we're going to be" pulled back a
             # sentence about a spine operation. Bounding the line keeps the rendering
             # close to the phrase itself.
+            # `pair_id` and the source line come back with every rendering. Without them
+            # this block asserted things it could not support: it grouped by `es` alone,
+            # so nothing was citable, and it showed the Spanish of a whole line as if it
+            # were the Spanish of the phrase. The length-ratio pair drops the crudest
+            # misalignments the same way `find_precedent` does.
             rend = ch.query(
-                f"SELECT es, count() AS c FROM mx_corpus "
+                f"SELECT es, count() AS c, min(pair_id) AS pid, any(doc_id) AS did, "
+                f"       any(en) AS src "
+                f"FROM mx_corpus "
                 f"WHERE {clickhouse_haystack_sql('en')} LIKE {{pat:String}} "
                 f"  AND length(en) <= {{cap:UInt32}} "
+                f"  AND length(es) <= length(en) * {{ratio:Float64}} "
+                f"  AND length(en) <= length(es) * {{ratio:Float64}} "
                 f"GROUP BY es ORDER BY c DESC, length(es) ASC LIMIT {{k:UInt32}}",
-                parameters={"pat": f"% {ng} %", "k": renderings,
-                            "cap": max(len(ng) * 2 + 12, 30)},
+                parameters={"pat": f"% {ng} %", "k": renderings * 3,
+                            "cap": max(int(len(ng) / MIN_COVERAGE) + 4, 24),
+                            "ratio": MAX_LENGTH_RATIO},
             ).result_rows
+            # A rendering seen once in a corpus with ~0.5% machine-translated documents is
+            # as likely to be that as to be usage. Agreed readings win; singletons are kept
+            # only to fill the slots nothing better claimed.
+            scored = [
+                Rendering(spanish=r[0], count=int(r[1]), pair_id=int(r[2]),
+                          doc_id=int(r[3]), english=r[4],
+                          coverage=round(len(ng) / max(len(r[4]), 1), 2))
+                for r in rend
+            ]
+            scored.sort(key=lambda x: (-min(x.count, 3), -x.coverage, len(x.spanish)))
             hits.append(PhraseHit(phrase=ng, words=int(n), support=int(support),
-                                  renderings=tuple((r[0], int(r[1])) for r in rend)))
+                                  renderings=tuple(scored[:renderings])))
 
-    near = tuple(p for p in find_precedent(cue, limit=neighbours)
-                 if p.similarity >= MIN_SIMILARITY)
-    return Evidence(cue=cue, phrases=tuple(hits), neighbours=near)
+    return tuple(hits)
+
+
+def gather_evidence(cue: str, *, neighbours: int = 8, renderings: int = 3,
+                    frame: Frame | None = None) -> Evidence:
+    """Retrieve precedent for one cue. Deterministic: same cue, same evidence.
+
+    Both indexes are consulted every time. They fail in opposite directions — phrases are
+    silent on new wording, neighbours always answer something — so asking only one leaves
+    a hole that the other covers.
+
+    With a `frame`, precedent that matches the scene's form of address is ranked first.
+    This is the whole of v2's retrieval difference, and it is deliberately small: the same
+    evidence, in a different order. `Get in the car.` has six renderings in this corpus
+    across three forms of address; without a frame the top four are chosen by how many
+    translators agreed, which puts `Súbase.` and `- Entren al carro.` — the only two that
+    state a form — below the cut. The scene is what says which of the three is right.
+    """
+    from .retrieval import find_precedent
+
+    hits = list(gather_phrases(cue, renderings=renderings))
+
+    # Over-fetch, then rank: reordering only helps if the candidates it needs survived the
+    # cut. Fetching `neighbours` and sorting them is the bug this replaces -- the forms
+    # worth promoting were the rare ones, and the cut removed them first.
+    pool = [p for p in find_precedent(cue, limit=neighbours * 3)
+            if p.similarity >= MIN_SIMILARITY]
+    if frame is not None and frame.constrains:
+        pool.sort(key=lambda p: _rank_key(read_address(p.spanish).form, frame))
+    near = tuple(pool[:neighbours])
+    return Evidence(cue=cue, phrases=tuple(hits), neighbours=near, frame=frame)
 
 
 INSTRUCTION = """\
@@ -235,9 +336,12 @@ not to invent something that sounds Mexican.
 
 The evidence comes in two kinds and they are not equal:
 
-* ATTESTED PHRASES are exact phrases from the corpus with the number of times each Spanish
-  rendering was used. This is fact. Prefer it. When a rendering is listed, use it or a
-  close variant of it, unless the sentence genuinely will not take it.
+* ATTESTED PHRASES are exact phrases from the corpus. Under each one are Spanish lines
+  that contained it, with how often that Spanish was used and the English line it came
+  from. Read the English line before you trust the Spanish: the corpus has no word-level
+  alignment, so when the phrase covers only part of its line, the Spanish translates the
+  whole line and not your phrase. Use a rendering when its English line is close to your
+  cue; ignore it when it is not, however many times it occurs.
 * SIMILAR LINES are lines close in meaning, with a similarity score. They show the register
   a Mexican translator reaches for. They are weaker: nobody wrote your exact line this way.
   Treat them as a guide to tone, not as words to copy.
@@ -268,20 +372,35 @@ def format_evidence(evidence: Evidence) -> str:
     """The evidence block, as the model sees it."""
     lines: list[str] = [f"ENGLISH CUE:\n{evidence.cue}\n"]
 
+    frame = evidence.frame
+    if frame is not None and frame.constrains:
+        listeners = "one listener" if frame.listeners <= 1 else f"{frame.listeners} listeners"
+        lines.append(
+            f"SCENE: this cue is addressed as **{frame.address.value}** ({listeners}).\n"
+            f"  Reason: {frame.why}\n"
+            f"  Use this form. Precedent below is ordered to put it first; where a\n"
+            f"  precedent uses a different form, take its wording and not its grammar.\n"
+        )
+
     if evidence.phrases:
-        lines.append("ATTESTED PHRASES (exact, from the corpus — prefer these):")
+        lines.append("ATTESTED PHRASES (exact, from the corpus):")
         for hit in evidence.phrases:
             lines.append(f'  "{hit.phrase}" — appears in {hit.support} lines')
-            for spanish, count in hit.renderings:
-                lines.append(f"      {count:>4}x  {spanish}")
+            for r in hit.renderings:
+                lines.append(f"      {r.count:>3}x  {r.spanish}")
+                lines.append(f"           from: {r.english}   "
+                             f"(pair_id {r.pair_id}, covers {r.coverage:.0%} of the line)")
         lines.append("")
 
     if evidence.neighbours:
         lines.append("SIMILAR LINES (close in meaning — a guide to register, not to words):")
         for n in evidence.neighbours:
             agree = f"{n.times}/{n.english_times}" if n.english_times > 1 else "1"
+            form = read_address(n.spanish).form
+            tag = "" if form is Address.UNMARKED else f" [{form.value}]"
             lines.append(f"  [{n.similarity:.2f}] {n.english}")
-            lines.append(f"          -> {n.spanish}   ({agree} translators, pair_id {n.pair_id})")
+            lines.append(f"          -> {n.spanish}{tag}   "
+                         f"({agree} translators, pair_id {n.pair_id})")
         lines.append("")
 
     if evidence.is_empty:

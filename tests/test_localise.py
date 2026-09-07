@@ -8,6 +8,7 @@ pinned by tests rather than inspected by eye in a demo.
 import pytest
 
 from subtext.localise import (
+    Rendering,
     INSTRUCTION,
     MIN_PHRASE_SUPPORT,
     NOT_MEXICAN,
@@ -128,12 +129,28 @@ def test_thinly_supported_phrases_are_not_quoted_as_precedent():
 
 def test_prompt_separates_attested_phrases_from_mere_neighbours():
     """Flattened together, a 0.6 neighbour reads as fact. The labels carry the weight."""
-    ev = Evidence(cue="Hurry up!", phrases=(PhraseHit("hurry up", 2, 374,
-                                                      (("¡Apúrate!", 11),)),))
+    ev = Evidence(cue="Hurry up!", phrases=(
+        PhraseHit("hurry up", 2, 374,
+                  (Rendering("¡Apúrate!", 11, 4210099, 77, "Hurry up.", 0.89),)),))
     text = format_evidence(ev)
     assert "ATTESTED PHRASES" in text
     assert "¡Apúrate!" in text and "11x" in text
     assert text.rstrip().endswith("MEXICAN SPANISH:")
+
+
+def test_a_rendering_shows_the_line_it_came_from_and_its_citation():
+    """The corpus has no word alignment, so a phrase lookup returns the Spanish of the
+    *line* that contained the phrase. Presented bare, that produced `"you can't handle"`
+    -> `Nada más.` labelled as attested fact. The source line and the `pair_id` are what
+    let a reader -- or the model -- see that the Spanish is about something else."""
+    ev = Evidence(cue="You can't handle the truth!", phrases=(
+        PhraseHit("you can't handle", 3, 10,
+                  (Rendering("No podrían soportarlo.", 1, 24408638, 141,
+                             "You can't handle mine.", 0.73),)),))
+    text = format_evidence(ev)
+    assert "You can't handle mine." in text      # what it is a rendering OF
+    assert "pair_id 24408638" in text            # checkable
+    assert "73%" in text                         # how much of the line the phrase covers
 
 
 def test_empty_evidence_says_so_rather_than_going_silent():
