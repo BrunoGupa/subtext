@@ -31,9 +31,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Sequence
 
+import json
 import re
 
-from .address import Address, read_address
+from .address import Address
 from .localise import MIN_SIMILARITY, check_register, gather_phrases
 
 #: How much precedent a reading needs before it is offered. A *marked* reading makes a
@@ -50,37 +51,30 @@ MIN_EVIDENCE_MARKED = 3
 #: singular before plural, familiar before formal. Stable, so a table stays comparable.
 ORDER = (Address.UNMARKED, Address.TU, Address.USTED, Address.USTEDES)
 
-#: English words that put a listener in the line.
-_SECOND_PERSON = re.compile(
-    r"\b(you|your|yours|yourself|yourselves|y'all|ya'll)\b", re.IGNORECASE)
+#: How much of the retrieved precedent has to address *somebody* before this cue is
+#: treated as addressing somebody. Not a rule about English -- a measurement of what the
+#: corpus does with lines like this one.
+#:
+#: The first version of this asked the question of the English instead: does the cue
+#: contain `you`, or begin with a verb from a list of imperatives derived from the corpus's
+#: `Don't X` frame? That list was closed and the input is not. It had neither `have` nor
+#: `calm`, so `Have a seat.` and `Calm down.` -- two lines the corpus renders in all three
+#: forms -- were judged to address nobody, and a judge typing `Buckle up.` would have hit
+#: the same wall. No amount of adding verbs fixes the shape of that mistake.
+#:
+#: The Spanish side already answers it, in labels we are paying for anyway. Lines close in
+#: meaning to `Have a seat.` come back as `Siéntate` / `Siéntese` / `Siéntense`; lines close
+#: to `Frankly, my dear, I don't give a damn` come back unmarked. So the signal is the
+#: *proportion* of retrieved precedent that states a form, and it works for any input in
+#: any wording.
+ADDRESSED_SHARE = 0.35
 
-#: Base-form verbs that begin an imperative. Derived 2026-09-07 from `mx_corpus`: the word
-#: following `Don't` at the head of a line is a base-form verb by construction, so 5,593
-#: negative imperatives yield the vocabulary of the positive ones for free. Pronouns and
-#: adverbs that the frame also admits (`you`, `just`, `even`, `ever`) are removed.
-_IMPERATIVE_VERBS: frozenset[str] = frozenset("""
-worry be let tell get move do forget say touch go look make talk leave take call play
-think cry give know come try start ask listen shoot bother mess lie put lose kill mention
-laugh mind run act speak stop pretend blame waste hurt push miss feel open want believe
-turn screw thank fight pay judge bring pull eat show wait shut hold keep sit stand watch
-follow help remember hurry drop stay send buy read write walk drive close answer
-""".split())
+_CHECK_LABELS = {"tu": Address.TU, "tú": Address.TU, "usted": Address.USTED,
+                 "ustedes": Address.USTEDES, "vosotros": Address.VOSOTROS,
+                 "none": Address.UNMARKED, "": Address.UNMARKED}
 
-
-def addresses_listener(cue: str) -> bool:
-    """Does this English line speak to somebody?
-
-    Only lines that do can have a tú/usted/ustedes reading, and this is the bound that
-    keeps the variants honest. Without it the grouping offered a second reading for
-    `Frankly, my dear, I don't give a damn` — a line with no addressee at all — because
-    some neighbours happened to contain `te`. The two outputs then differed only in word
-    choice while being labelled as different forms of address, which is a claim the corpus
-    never made.
-    """
-    if _SECOND_PERSON.search(cue):
-        return True
-    first = re.match(r"[^A-Za-z]*([A-Za-z']+)", cue)
-    return bool(first and first.group(1).lower() in _IMPERATIVE_VERBS)
+#: The model's way of saying a reading does not apply to this line.
+REFUSAL = "NONE"
 
 
 @dataclass(frozen=True)
@@ -118,6 +112,9 @@ class Variant:
     #: False when nothing in the corpus came close enough to this cue. The line is still
     #: translated -- and must be marked, or a guess is indistinguishable from a citation.
     grounded: bool = True
+    #: False when the grammar check still failed after the retry. The line is returned
+    #: anyway, flagged, rather than dropped: a reviewer needs to see what came out.
+    well_formed: bool = True
 
 
 def _looks_untranslated(english: str, spanish: str) -> bool:
@@ -144,8 +141,6 @@ def group_by_address(cue: str, *, pool: int = 400, depth: int = 300, tag_forms=N
     """
     from .retrieval import find_precedent
 
-    addressed = addresses_listener(cue)
-
     candidates = [p for p in find_precedent(cue, limit=pool, neighbours=depth)
                   if p.similarity >= MIN_SIMILARITY
                   and not _looks_untranslated(p.english, p.spanish)]
@@ -153,8 +148,16 @@ def group_by_address(cue: str, *, pool: int = 400, depth: int = 300, tag_forms=N
     # in `address.py`; `address_llm.llm_tagger(ask)` is the other arm of that comparison.
     # It is injected rather than imported so this function does not decide which tagger the
     # project uses -- the measurement does.
-    forms = (tag_forms([p.spanish for p in candidates]) if tag_forms
-             else [read_address(p.spanish).form for p in candidates])
+    if tag_forms is None:
+        raise ValueError(
+            "group_by_address needs a tagger. The morphological one was removed on "
+            "2026-09-07 after losing to the model 198-2; use "
+            "`address_llm.cached_tagger(ask, model=...)`."
+        )
+    forms = tag_forms([p.spanish for p in candidates])
+
+    marked = sum(1 for f in forms if f not in (Address.UNMARKED, Address.VOSOTROS))
+    addressed = bool(forms) and marked / len(forms) >= ADDRESSED_SHARE
 
     grouped: dict[Address, list] = {}
     for precedent, form in zip(candidates, forms):
@@ -201,6 +204,21 @@ _ASKED = {
                           "of your way to state or avoid a pronoun"),
 }
 
+CHECK_INSTRUCTION = """\
+Check one Spanish subtitle line. Answer ONLY with JSON, no prose:
+
+{"addresses": "tu" | "usted" | "ustedes" | "none",
+ "well_formed": true | false,
+ "fix": "<the corrected line, or an empty string if well_formed is true>"}
+
+`addresses` — how the line addresses its listener, or "none" if it does not say.
+`well_formed` — is every word real, correctly conjugated Mexican Spanish? Judge the
+  grammar only. Do NOT judge word choice, register, punctuation or style, and do not
+  rewrite a line that is merely different from what you would have written.
+
+LINE: {line}
+"""
+
 VARIANT_INSTRUCTION = """\
 You localise English film subtitles into MEXICAN Spanish.
 
@@ -213,8 +231,14 @@ THIS RENDERING ADDRESSES: {who}
 Below are lines from a corpus of 718,925 lines written by Mexican subtitlers, all of which
 address their listener the same way. They show both the wording and the grammar to use.
 
+If this form of address is WRONG for this line, output exactly NONE and nothing else.
+The line itself can rule it out: `Here's looking at you, kid` cannot be usted, because
+nobody addresses a child as usted; a line calling the listener `sir` cannot be tú. Refusing
+is correct and costs nothing. Producing a reading the line forbids is the worse error --
+it was `Brindo por usted, niña.`, which is wrong Spanish manners, not wrong grammar.
+
 Rules:
-- Output ONLY the Spanish line. No quotes, no explanation, no alternatives.
+- Output ONLY the Spanish line, or NONE. No quotes, no explanation, no alternatives.
 - Subtitle length. If the English is short, the Spanish is short.
 - {grammar}
 - Take wording from the evidence. Do not add slang it does not show — reaching for `güey`
@@ -275,6 +299,36 @@ def format_variant_prompt(cue: str, evidence: VariantEvidence, *,
     return "\n".join(lines)
 
 
+def check_output(line: str, *, ask) -> tuple[Address, bool, str]:
+    """Two narrow questions about one output line: which form, and is it real Spanish.
+
+    Deliberately not "is this a good translation?" -- a model grading a model on quality is
+    the pattern this project has no way to trust, and the register gate exists precisely so
+    that judgement is made by counting against the corpus. These two questions have
+    checkable answers, and Python decides what to do with them.
+
+    The grammar question earns its call. The register gate counts words against lexicons,
+    so `Adelante, alégranme el día.` passed it clean: every word looked Mexican and the
+    conjugation was invented. Nothing else in the pipeline reads morphology any more, and
+    the corpus cannot fill in either -- `alégrame`, `cuídese` and `cállense` occur **zero**
+    times in 718,925 lines and are all perfectly good Spanish, so "not attested" is not
+    evidence of "not a word".
+    """
+    reply = ask(CHECK_INSTRUCTION.replace("{line}", line)) or ""
+    match = re.search(r"\{.*\}", reply, re.DOTALL)
+    if not match:
+        return Address.UNMARKED, True, ""      # unreadable check never fails a line
+    try:
+        data = json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return Address.UNMARKED, True, ""
+    if not isinstance(data, dict):
+        return Address.UNMARKED, True, ""
+    form = _CHECK_LABELS.get(str(data.get("addresses", "")).strip().lower(),
+                             Address.UNMARKED)
+    return form, bool(data.get("well_formed", True)), str(data.get("fix", "")).strip()
+
+
 def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
                        model: str | None = None) -> list[Variant]:
     """Every attested reading of `cue`, translated. One model call per reading.
@@ -299,24 +353,61 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         from .address_llm import cached_tagger
         from .config import settings
         tag_forms = cached_tagger(ask, model=model or settings().gemini_model)
+
     for evidence in group_by_address(cue, tag_forms=tag_forms):
-        spanish = (ask(format_variant_prompt(cue, evidence, limit=limit,
-                                             phrases=phrases)) or "").strip()
-        spanish = spanish.strip('"').splitlines()[0].strip() if spanish else ""
+        prompt = format_variant_prompt(cue, evidence, limit=limit, phrases=phrases)
+        spanish = _first_line(ask(prompt))
+
+        # The model was given the right to refuse a reading the line rules out -- usted to
+        # somebody the line calls `kid`. A refused reading is not offered at all, which is
+        # the point: `Brindo por usted, niña.` was not bad grammar, it was a reading that
+        # should never have been generated.
+        if spanish.upper().rstrip(".!") == REFUSAL:
+            continue
+
+        form, well_formed, fix = check_output(spanish, ask=ask)
+        wrong_form = (evidence.form is not Address.UNMARKED
+                      and form is not Address.UNMARKED
+                      and form is not evidence.form)
+
+        # One retry, and **Python decides whether to take it** -- from two yes/no answers,
+        # never from the model judging its own work. The retry says exactly what was wrong
+        # and forbids anything else changing, because a free rewrite tends to drift off the
+        # evidence, which is the failure this system exists to prevent.
+        if wrong_form or not well_formed:
+            note = []
+            if wrong_form:
+                note.append(f"It addressed the listener as {form.value}, but this rendering "
+                            f"must address them as {evidence.form.value}.")
+            if not well_formed:
+                note.append("It is not well-formed Mexican Spanish"
+                            + (f"; the conjugation should be: {fix}" if fix else "."))
+            retry = (f"{prompt}\n\nYour previous attempt was rejected. "
+                     f"{' '.join(note)}\nKeep the same meaning, wording and length; change "
+                     f"nothing else.\nPrevious attempt: {spanish}\n")
+            candidate = _first_line(ask(retry))
+            if candidate and candidate.upper().rstrip(".!") != REFUSAL:
+                spanish = candidate
+                form, well_formed, _ = check_output(spanish, ask=ask)
+
         report = check_register(spanish)
-        grounded = bool(evidence.precedents or evidence.shared)
-        reading = read_address(spanish)
         out.append(Variant(
             form=evidence.form,
             spanish=spanish,
             pair_ids=evidence.pair_ids[:limit],
             register=report.summary,
             not_mexican=list(report.not_mexican),
-            # An unmarked reading is confirmed by *not* addressing anyone; a marked one by
-            # using the form asked for. A marked cue coming back unmarked is not a failure:
-            # Spanish drops the pronoun, so many correct lines state nothing.
-            form_confirmed=(reading.form is evidence.form
-                            or reading.form is Address.UNMARKED),
-            grounded=grounded,
+            # A marked reading is confirmed by using the form asked for. Coming back
+            # UNMARKED is not a failure: Spanish drops the subject pronoun, so plenty of
+            # correct lines state nothing -- only stating the *wrong* one is.
+            form_confirmed=(form is evidence.form or form is Address.UNMARKED),
+            well_formed=well_formed,
+            grounded=bool(evidence.precedents or evidence.shared),
         ))
     return out
+
+
+def _first_line(reply: str | None) -> str:
+    """The model's answer, reduced to the one line it was asked for."""
+    text = (reply or "").strip().strip('"')
+    return text.splitlines()[0].strip() if text else ""

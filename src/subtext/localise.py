@@ -33,8 +33,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from .address import Address, read_address
-from .frame import Frame
 from .ingest.mexican import MEXICAN, PENINSULAR
 from .tokenizer import MAX_N, clickhouse_haystack_sql, ngrams, tokens
 
@@ -93,9 +91,6 @@ class Evidence:
     cue: str
     phrases: tuple[PhraseHit, ...] = ()
     neighbours: tuple = ()  # tuple[Precedent, ...]; typed loosely to avoid a cycle
-    #: The scene this cue sits in, when v2 supplied one. `None` is v1: no scene, no
-    #: reranking, precedent ordered by similarity and agreement alone.
-    frame: Frame | None = None
 
     @property
     def is_empty(self) -> bool:
@@ -222,21 +217,6 @@ def candidate_phrases(cue: str, max_n: int = MAX_N) -> list[str]:
     return out
 
 
-def _rank_key(form: Address, frame: Frame | None):
-    """How well a precedent's form fits the scene: 0 agrees, 1 says nothing, 2 contradicts.
-
-    Contradicting precedent is ranked down, never dropped. `Súbete al coche.` is a correct
-    Mexican line and stays visible in a `usted` scene; it just stops being the first thing
-    the model reads. Deleting it would hide the corpus behind a frame that one model call
-    produced, which is a worse failure than showing it in the wrong order.
-    """
-    if frame is None or not frame.constrains:
-        return 0
-    if form is Address.UNMARKED:
-        return 1
-    return 0 if form is frame.address else 2
-
-
 def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
     """The attested-phrase half of the evidence, on its own.
 
@@ -297,34 +277,26 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
     return tuple(hits)
 
 
-def gather_evidence(cue: str, *, neighbours: int = 8, renderings: int = 3,
-                    frame: Frame | None = None) -> Evidence:
+def gather_evidence(cue: str, *, neighbours: int = 8, renderings: int = 3) -> Evidence:
     """Retrieve precedent for one cue. Deterministic: same cue, same evidence.
 
     Both indexes are consulted every time. They fail in opposite directions — phrases are
     silent on new wording, neighbours always answer something — so asking only one leaves
     a hole that the other covers.
 
-    With a `frame`, precedent that matches the scene's form of address is ranked first.
-    This is the whole of v2's retrieval difference, and it is deliberately small: the same
-    evidence, in a different order. `Get in the car.` has six renderings in this corpus
-    across three forms of address; without a frame the top four are chosen by how many
-    translators agreed, which puts `Súbase.` and `- Entren al carro.` — the only two that
-    state a form — below the cut. The scene is what says which of the three is right.
+    This is the single-answer path: one cue, one Spanish line. `variants.py` is the other
+    one, and it exists because for a cue that addresses somebody this function has to
+    choose a form of address it cannot know. `Get in the car.` has renderings here as tú,
+    usted and ustedes, and the ordering below picks between them by how many translators
+    agreed — which is to say by accident.
     """
     from .retrieval import find_precedent
 
     hits = list(gather_phrases(cue, renderings=renderings))
 
-    # Over-fetch, then rank: reordering only helps if the candidates it needs survived the
-    # cut. Fetching `neighbours` and sorting them is the bug this replaces -- the forms
-    # worth promoting were the rare ones, and the cut removed them first.
-    pool = [p for p in find_precedent(cue, limit=neighbours * 3)
-            if p.similarity >= MIN_SIMILARITY]
-    if frame is not None and frame.constrains:
-        pool.sort(key=lambda p: _rank_key(read_address(p.spanish).form, frame))
-    near = tuple(pool[:neighbours])
-    return Evidence(cue=cue, phrases=tuple(hits), neighbours=near, frame=frame)
+    near = tuple(p for p in find_precedent(cue, limit=neighbours * 3)
+                 if p.similarity >= MIN_SIMILARITY)[:neighbours]
+    return Evidence(cue=cue, phrases=tuple(hits), neighbours=near)
 
 
 INSTRUCTION = """\
@@ -372,15 +344,6 @@ def format_evidence(evidence: Evidence) -> str:
     """The evidence block, as the model sees it."""
     lines: list[str] = [f"ENGLISH CUE:\n{evidence.cue}\n"]
 
-    frame = evidence.frame
-    if frame is not None and frame.constrains:
-        listeners = "one listener" if frame.listeners <= 1 else f"{frame.listeners} listeners"
-        lines.append(
-            f"SCENE: this cue is addressed as **{frame.address.value}** ({listeners}).\n"
-            f"  Reason: {frame.why}\n"
-            f"  Use this form. Precedent below is ordered to put it first; where a\n"
-            f"  precedent uses a different form, take its wording and not its grammar.\n"
-        )
 
     if evidence.phrases:
         lines.append("ATTESTED PHRASES (exact, from the corpus):")
@@ -396,10 +359,8 @@ def format_evidence(evidence: Evidence) -> str:
         lines.append("SIMILAR LINES (close in meaning — a guide to register, not to words):")
         for n in evidence.neighbours:
             agree = f"{n.times}/{n.english_times}" if n.english_times > 1 else "1"
-            form = read_address(n.spanish).form
-            tag = "" if form is Address.UNMARKED else f" [{form.value}]"
             lines.append(f"  [{n.similarity:.2f}] {n.english}")
-            lines.append(f"          -> {n.spanish}{tag}   "
+            lines.append(f"          -> {n.spanish}   "
                          f"({agree} translators, pair_id {n.pair_id})")
         lines.append("")
 
