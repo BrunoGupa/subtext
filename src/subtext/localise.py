@@ -308,7 +308,7 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
                 f"  AND length(en) <= length(es) * {{ratio:Float64}} "
                 f"GROUP BY es ORDER BY c DESC, length(es) ASC LIMIT {{k:UInt32}}",
                 parameters={"pat": f"% {ng} %", "k": renderings * 3,
-                            "cap": max(int(len(ng) / MIN_COVERAGE) + 4, 24),
+                            "cap": int(len(ng) / MIN_COVERAGE) + 8,
                             "ratio": MAX_LENGTH_RATIO},
             ).result_rows
             # A rendering seen once in a corpus with ~0.5% machine-translated documents is
@@ -320,6 +320,19 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
                           coverage=round(len(ng) / max(len(r[4]), 1), 2))
                 for r in rend
             ]
+            # Coverage was computed, printed, and never actually used -- the bound existed
+            # only as a length cap with a 24-character floor, which lets a short phrase match
+            # a line it barely occupies. `He wore this watch up his ass` is what that cost:
+            # the specific phrase `up his ass` (6 lines) returned nothing because no line
+            # containing it is under 24 characters, while the generic `his ass` returned
+            # `I could kick his ass.` -> `Podría patearle su trasero.` at 33% coverage. So
+            # the model was handed `trasero` from an unrelated idiom, and used it, and the
+            # corpus's own `culo` -- 165 lines, 94 of them rendering `ass` in exactly this
+            # crude sense -- never reached the prompt.
+            #
+            # Filtering on coverage rather than merely sorting by it is the fix: below the
+            # bound the Spanish is not about the phrase, it is about the rest of the line.
+            scored = [x for x in scored if x.coverage >= MIN_COVERAGE]
             scored.sort(key=lambda x: (-min(x.count, 3), -x.coverage, len(x.spanish)))
             hits.append(PhraseHit(phrase=ng, words=int(n), support=int(support),
                                   renderings=tuple(scored[:renderings])))
