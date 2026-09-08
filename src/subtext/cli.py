@@ -310,27 +310,73 @@ def cmd_precedent(args: argparse.Namespace) -> int:
 
 
 def cmd_localise(args: argparse.Namespace) -> int:
-    """Localise an English cue into Mexican Spanish, grounded in the corpus."""
-    from .agent.localiser import localise
+    """Every Mexican Spanish reading of one English line that the corpus attests.
+
+    English `you` is tú, usted and ustedes at once, and a subtitle line arrives with no
+    scene attached, so returning one Spanish line means choosing silently. This returns the
+    readings the corpus supports, each with the `pair_id` of the lines that back it.
+    """
+    from .variants import group_by_address, translate_variants
 
     if args.evidence_only:
-        from .localise import format_evidence, gather_evidence
-        print(format_evidence(gather_evidence(args.cue)))
+        from .address_llm import cached_tagger
+        from .localise import gather_phrases
+
+        print(f"EN  {args.cue}\n")
+        for hit in gather_phrases(args.cue):
+            print(f'  attested phrase "{hit.phrase}" — in {hit.support} lines')
+            for r in hit.renderings:
+                print(f"      {r.count:>3}x  {r.spanish}   (pair_id {r.pair_id})")
+        from .config import settings
+        tag = cached_tagger(_asker(args.model), model=args.model or settings().gemini_model)
+        for group in group_by_address(args.cue, tag_forms=tag):
+            print(f"\n  {group.form.value}: {len(group.precedents)} precedents")
+            for p in group.precedents[:5]:
+                print(f"      {p.spanish}   (pair_id {p.pair_id})")
         return 0
 
-    result = localise(args.cue, model=args.model)
-    print(f"EN  {result.cue}")
-    print(f"ES  {result.spanish}")
-    mark = "" if result.grounded else "   << UNGROUNDED: no precedent, this is a guess"
-    print(f"\n    evidence : {result.phrases} attested phrases, "
-          f"{result.neighbours} neighbours{mark}")
-    print(f"    register : {result.register}")
-    print(f"    passes   : {result.passes} Gemini call(s)")
-    if not result.clean:
-        print(f"    WARNING  : non-Mexican forms survived the retry: {', '.join(result.not_mexican)}")
-    # Exit non-zero for a register failure only. An ungrounded line is not an error --
-    # it is a line a human has to look at, and it says so above.
-    return 0 if result.clean else 1
+    variants = translate_variants(args.cue, ask=_asker(args.model), model=args.model)
+    print(f"EN  {args.cue}")
+    if not variants:
+        print("    no reading could be produced")
+        return 1
+    for v in variants:
+        label = "" if v.form.value == "unmarked" else f"[{v.form.value}]"
+        print(f"\nES  {v.spanish}   {label}")
+        print(f"    cited   : {', '.join(f'pair_id {i}' for i in v.pair_ids[:4]) or 'none'}")
+        print(f"    register: {v.register}")
+        flags = []
+        if not v.grounded:
+            flags.append("UNGROUNDED -- no precedent came close; this is a guess")
+        if not v.well_formed:
+            flags.append("GRAMMAR -- failed the check after one retry")
+        if not v.form_confirmed:
+            flags.append(f"FORM -- the line does not read as {v.form.value}")
+        for f in flags:
+            print(f"    ! {f}")
+    # An ungrounded line is not an error -- it is a line a human has to look at, and it
+    # says so above. Only Spain's forms surviving the retry is a failure.
+    return 0 if all(v.not_mexican == [] for v in variants) else 1
+
+
+def _asker(model: str | None = None):
+    """One-shot Gemini call with the project's generation config."""
+    from google import genai
+    from .config import settings
+    from google.genai import types
+
+    client = genai.Client()
+    name = model or settings().gemini_model
+    config = types.GenerateContentConfig(
+        temperature=0.2, max_output_tokens=2048,
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
+    )
+
+    def ask(prompt: str) -> str:
+        return client.models.generate_content(
+            model=name, contents=prompt, config=config).text or ""
+
+    return ask
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -444,11 +490,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_prec.set_defaults(func=cmd_precedent)
 
     p_loc = sub.add_parser(
-        "localise", help="translate an English cue into Mexican Spanish (needs GOOGLE_API_KEY)")
+        "localise",
+        help="every Mexican Spanish reading of an English line (needs GOOGLE_API_KEY)")
     p_loc.add_argument("cue", help="the English subtitle line")
     p_loc.add_argument("--model", default=None)
     p_loc.add_argument("--evidence-only", action="store_true",
-                       help="show the retrieved evidence and stop -- no model call, no cost")
+                       help="show the retrieved evidence and stop -- no translation is "
+                            "written, but grouping the precedent still tags it, so a cold "
+                            "cache costs a call or two")
     p_loc.set_defaults(func=cmd_localise)
 
     p_eval = sub.add_parser("eval", help="recall@k and faithfulness against the golden set")

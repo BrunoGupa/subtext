@@ -27,10 +27,9 @@ schema: ## Create tables
 fetch: ## Download the third-party corpora (~4.2 GB, not redistributed here) - see CORPUS.md
 	uv run subtext fetch
 
-load: ## Load the bundled sample corpus and embed it
-	uv run subtext load --source sample
-	uv run subtext embed
-	uv run subtext embed-schema
+corpus: ## Build the Mexican corpus + embeddings from a loaded aligned_lines (~1.5 min)
+	uv run subtext build-mx
+	uv run subtext embed-mx
 
 serve: ## Run the web UI on http://127.0.0.1:8000
 	uv run subtext serve
@@ -38,15 +37,15 @@ serve: ## Run the web UI on http://127.0.0.1:8000
 ask: ## Ask the agent a question: make ask Q="..."
 	uv run subtext ask "$(Q)"
 
-eval: ## Run the golden-set evaluation
-	uv run subtext eval
+localise: ## Localise one English line: make localise L="Get in the car."
+	uv run subtext localise "$(L)"
 
-sweep: ## Sweep chunk strategies x top-k
-	uv run subtext sweep
-
-demo: env up install schema load ## Full cold start to a queryable corpus
-	@echo "Ready. Run 'make serve' for the web UI, or:"
-	@echo "  make ask Q='How many times does Vale break a promise?'"
+demo: env up install schema ## Cold start. Needs the corpus - see `make fetch` first.
+	@$(MAKE) --no-print-directory corpus
+	@echo ""
+	@echo "Ready. Try:"
+	@echo "  make localise L='What the fuck?'"
+	@echo "  make serve      # web UI on http://127.0.0.1:8000"
 
 test: ## Run the test suite
 	uv run pytest -q
