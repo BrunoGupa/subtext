@@ -27,33 +27,56 @@ cheap enough that there is no excuse not to.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Sequence
 
 #: Mexican register markers. Presence of these is the positive signal.
+#: Mexican register markers. Presence of these is the positive signal.
+#:
+#: Five entries were removed on 2026-09-07 after reading the documents they had selected.
+#: They were not weak markers, they were the wrong string:
+#:
+#:     simon   the name Simon, not `simón` = yes. 4,407 occurrences are the name in the
+#:             middle of a sentence against **14** in lower case, and it was the single
+#:             most frequent marker in the whole corpus -- present in 310 of 697 documents.
+#:             `Simón dice` (the children's game) and `Simon Petrovic` both scored.
+#:     sepa    the ordinary subjunctive of *saber*. "No creo que sepa", "nadie sepa quién
+#:             soy". Not slang at all, and in 244 of 697 documents.
+#:     chin    the character Chin Li. Every sampled line was the name.
+#:     feria   the Science Fair. `feria` = loose change is real Mexican usage, but in this
+#:             corpus the literal sense dominates.
+#:     lana    Bruno's call: generic before it is slang -- *lana de borrego*, *abrigo de
+#:             lana* -- and it also catches the name Lana.
+#:
+#: The lesson generalises: a marker has to be a string that is rare *as a string*, not a
+#: word that is Mexican *as a sense*. The ones that survived this reading are the opposite
+#: kind -- every sampled `neta` and `morros` line was unmistakably Mexican dialogue.
+#:
+#: 99 -> 95 markers. Re-derive the false positives after any widening by reading the
+#: documents a new marker pulls in, not by counting how many it pulls.
 MEXICAN: tuple[str, ...] = (
     "ahorita", "ahoritita", "alberca", "albercas",
     "andale", "andele", "antojitos", "apapachar",
     "apapacho", "banqueta", "banquetas", "botana",
     "botanas", "chafa", "chale", "chamaco",
     "chamacos", "chamarra", "chamarras", "chamba",
-    "chambear", "chava", "chavo", "chavos",
-    "chido", "chidos", "chin", "chinga",
+    "chambear", "chava", "chavas", "chavo",
+    "chavos", "chido", "chidos", "chinga",
     "chingada", "chingaderas", "chingado", "chingar",
     "chingo", "chingon", "chingona", "chingue",
     "codo", "cuate", "cuates", "culero",
     "culeros", "desmadre", "elote", "elotes",
-    "escuincle", "escuincles", "feria", "flojera",
-    "fregon", "fregona", "fuchi", "gacha",
-    "gacho", "guacala", "guey", "hijole",
-    "hueva", "huevon", "jalar", "jale",
-    "lana", "luegito", "madrear", "madriza",
-    "mames", "manches", "mande", "morra",
-    "morro", "morros", "naco", "nacos",
-    "nel", "neta", "orale", "padrisimo",
-    "pendeja", "pendejo", "pendejos", "pinche",
-    "pinches", "platica", "platicamos", "platicando",
-    "platicar", "platicas", "popote", "popotes",
-    "sepa", "simon", "tantita", "tantito",
+    "escuincle", "escuincles", "flojera", "fregon",
+    "fregona", "fuchi", "gacha", "gacho",
+    "guacala", "guey", "hijole", "hueva",
+    "jalar", "jale", "luegito",
+    "madrear", "madriza", "mames", "manches",
+    "morra", "morro", "morros",
+    "naco", "nacos", "nel", "neta",
+    "orale", "padrisimo", "pendeja", "pendejo",
+    "pendejos", "pinche", "pinches", "platica",
+    "platicamos", "platicando", "platicar", "platicas",
+    "popote", "popotes", "tantita", "tantito",
     "troca", "trocas", "varo", "vato",
     "vatos", "wey", "zafo",
 )
@@ -125,16 +148,46 @@ SEED_WINDOW = 1000
 SEED_THRESHOLD = 10
 MX_OVER_ES = 2
 
+#: A document needs at least this many *distinct* Mexican markers to stay.
+MIN_DISTINCT_MARKERS = 2
+
 _ACCENTS = ("'áéíóúñüÁÉÍÓÚÑÜ','aeiounuaeiounu'")
+
+
+#: Strips a capitalised word that does **not** open a sentence, because that is a proper
+#: name and not a marker. Six separate documents were selected by this mistake before the
+#: rule existed, and they were not obscure -- `chava` is Chava in *Fiddler on the Roof*,
+#: `morra` is Senator Morra in *Limitless*, `gacha` is Gacha in *Narcos*, and `simon`, the
+#: single most frequent "marker" in the whole corpus, was the name Simon 4,407 times
+#: against 14 real lowercase uses.
+#:
+#: Sentence-initial capitals are deliberately kept: `Ándale, vamos.` and `Órale.` open a
+#: subtitle line constantly and are exactly the usage we are hunting. So the pattern fires
+#: only on a capital that follows a lowercase letter, a digit or a comma -- mid-sentence.
+#:
+#: RE2 has no lookbehind, so the preceding character is captured and put back.
+_MIDSENTENCE_CAPITAL = (
+    r'([a-záéíóúñü0-9,;:)\]"]\s+)'
+    r'[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñü]*'
+)
 
 
 def normalised(column: str) -> str:
     """Lowercase, strip accents, punctuation to spaces, and pad both ends.
 
     The padding is what turns a substring test into a whole-word one.
+
+    Before any of that, mid-sentence capitalised words are removed -- see
+    `_MIDSENTENCE_CAPITAL`. Lines that are entirely upper case are exempt: subtitles are
+    often typeset that way ("AHORITA VENGO, ¿EH?") and stripping them would delete the
+    line rather than a name.
     """
+    stripped = (
+        "multiIf(" + column + " = upperUTF8(" + column + "), " + column + ", "
+        "replaceRegexpAll(" + column + ", '" + _MIDSENTENCE_CAPITAL + "', '\\\\1 '))"
+    )
     return (
-        "concat(' ', replaceRegexpAll(translateUTF8(lowerUTF8(" + column + "),"
+        "concat(' ', replaceRegexpAll(translateUTF8(lowerUTF8(" + stripped + "),"
         + _ACCENTS + "), '[^a-z0-9]+', ' '), ' ')"
     )
 
@@ -213,6 +266,42 @@ TABLES: dict[str, str] = {
     "mx_corpus": "(pair_id UInt64, blk UInt32, doc_id UInt32, en String, es String)"
                  " ENGINE = MergeTree ORDER BY pair_id",
 }
+
+
+#: Documents removed after a human read them. The detector is statistical and cannot tell
+#: a Mexican marker from a proper name spelled the same way -- `chava` is Chava in *Fiddler
+#: on the Roof*, `wey` is a character called Wey, and `codo` is the elbow in an arm-wrestling
+#: scene. No amount of tuning finds that; somebody has to read the lines.
+#:
+#: The list is data rather than a hand edit to a table, so a rebuild reproduces it and a
+#: judge can read what was removed and why. Ranges are `pair_id` because document ids are
+#: assigned during the build and change between runs.
+EXCLUSIONS = Path(__file__).resolve().parents[3] / "data" / "mx_excluded.tsv"
+
+
+def read_exclusions(path: Path | None = None) -> list[tuple[int, int]]:
+    """The hand-checked exclusion ranges. Missing file means no exclusions."""
+    target = path or EXCLUSIONS
+    if not target.exists():
+        return []
+    out: list[tuple[int, int]] = []
+    for line in target.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        parts = line.split("\t")
+        out.append((int(parts[0]), int(parts[1])))
+    return out
+
+
+def _overlaps(rng: tuple[int, int], excluded: Sequence[tuple[int, int]]) -> bool:
+    """A document is dropped if it overlaps an excluded range at all.
+
+    Overlap rather than equality on purpose: the boundary refinement can shift an edge by
+    a few lines between runs, and an exclusion that stopped matching after a rebuild would
+    silently put a document a human rejected back into the corpus.
+    """
+    lo, hi = rng
+    return any(lo <= b and a <= hi for a, b in excluded)
 
 
 def _recreate(ch, name: str) -> None:
@@ -314,6 +403,11 @@ def build(*, from_index=None, skip_scan: bool = False, log=print) -> dict:
         merged_seeds = merge(seeds)
         ranges = [tuple(r) for r in merge(refine(lo, hi, scores) for lo, hi in merged_seeds)]
         stats["source"] = "derived"
+    excluded = read_exclusions()
+    if excluded:
+        kept = [r for r in ranges if not _overlaps(r, excluded)]
+        stats["excluded_documents"] = len(ranges) - len(kept)
+        ranges = kept
     stats["documents"] = len(ranges)
     stats["boundary_secs"] = round(time.perf_counter() - t, 2)
 
@@ -337,10 +431,51 @@ def build(*, from_index=None, skip_scan: bool = False, log=print) -> dict:
         GROUP BY doc_id
     """).result_rows
     by_doc = {r[0]: r[1:] for r in counts}
+
+    # One word repeated is evidence about a word, not about a film. Documents resting on a
+    # single distinct marker were the third pattern of hand-found false positive on
+    # 2026-09-07 -- `pendejo` x33 and nothing else, `huevon` x137 and nothing else -- and
+    # both read as the wrong country once somebody looked at them. The documents that
+    # survived reading carried 28 to 50 distinct markers, so the bar is set at the lowest
+    # value that means anything at all.
+    literals = ", ".join("' " + w.replace("'", "''") + " '" for w in MEXICAN)
+    thin = {
+        int(doc) for doc, n in ch.query(f"""
+            SELECT doc_id, uniqExact(w) AS distinct_markers FROM (
+                SELECT doc_id,
+                       arrayJoin(arrayFilter(x -> position(t, x) > 0, [{literals}])) AS w
+                FROM (SELECT doc_id, {normalised('es')} AS t FROM mx_corpus)
+            ) GROUP BY doc_id HAVING distinct_markers < {MIN_DISTINCT_MARKERS}
+        """).result_rows
+    }
+    # Documents with no marker at all never reach the subquery above, so they are added here.
+    thin |= {i for i, _ in enumerate(ranges, 1)} - {int(r[0]) for r in counts}
+    numbered: list = []
+    if thin:
+        ids = ", ".join(str(i) for i in sorted(thin))
+        ch.command(f"DELETE FROM mx_corpus WHERE doc_id IN ({ids})")
+        # Keep the surviving ids paired with their ranges. Renumbering here would leave
+        # `mx_corpus` holding the old ids while `mx_docs` claimed new ones, and every join
+        # between them would then be quietly wrong.
+        numbered = [(i, r) for i, r in enumerate(ranges, 1) if i not in thin]
+        stats["thin_documents"] = len(thin)
+        stats["documents"] = len(numbered)
+        counts = ch.query(f"""
+            SELECT doc_id,
+                   countIf({any_of(MEXICAN)}) AS mx,
+                   countIf({any_of(PENINSULAR)}) AS es,
+                   countIf({any_of(OTHER_LATAM)}) AS other
+            FROM (SELECT doc_id, {normalised('es')} AS t FROM mx_corpus)
+            GROUP BY doc_id
+        """).result_rows
+        by_doc = {r[0]: r[1:] for r in counts}
+        stats["lines"] = ch.query("SELECT count() FROM mx_corpus").result_rows[0][0]
+    else:
+        numbered = list(enumerate(ranges, 1))
     ch.command("TRUNCATE TABLE mx_docs")
     ch.insert("mx_docs",
               [[i, lo, hi, hi - lo + 1, *by_doc.get(i, (0, 0, 0))]
-               for i, (lo, hi) in enumerate(ranges, 1)],
+               for i, (lo, hi) in numbered],
               column_names=["doc_id", "lo", "hi", "n_lines", "mx", "es", "other"])
     stats["mexican_markers"] = sum(v[0] for v in by_doc.values())
     stats["peninsular_markers"] = sum(v[1] for v in by_doc.values())

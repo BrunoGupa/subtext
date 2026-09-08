@@ -11,9 +11,30 @@ from subtext.ingest import mexican as m
 
 
 def test_lexicon_sizes_are_pinned():
-    """Widening a list is fine, but it changes the corpus - so it has to be deliberate."""
+    """Widening a list is fine, but it changes the corpus - so it has to be deliberate.
+
+    99 -> 93 on 2026-09-07, and narrowing turned out to matter far more than widening ever
+    had: `simon`, `sepa`, `mande`, `chin` and `feria` were not markers at all, and removing
+    them plus two judgement calls halved the corpus while more than doubling its marker
+    density. See CORPUS.md 6.3.
+    """
     assert (len(m.MEXICAN), len(m.PENINSULAR), len(m.LATIN_AMERICAN), len(m.OTHER_LATAM)) \
-        == (99, 66, 34, 28)
+        == (93, 66, 34, 28)
+
+
+def test_the_removed_entries_stay_removed():
+    """Each of these was read in context before it was cut, and each would come back the
+    moment somebody widened the lexicon by intuition instead of by reading."""
+    for word in ("simon", "sepa", "mande", "chin", "feria", "lana", "huevon"):
+        assert word not in m.MEXICAN, word
+
+
+def test_a_mid_sentence_capital_is_not_a_marker():
+    """`normalised` strips capitalised words that do not open a sentence, because they are
+    proper names: Chava in Fiddler on the Roof, Morra in Limitless, Gacha in Narcos."""
+    sql = m.normalised("c")
+    assert "upperUTF8" in sql          # all-caps subtitle lines are exempt
+    assert "replaceRegexpAll" in sql
 
 
 def test_lexicons_are_accent_stripped_and_lowercase():

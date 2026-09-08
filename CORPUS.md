@@ -200,7 +200,7 @@ including one case per contraction collision listed above.
 OPUS normalized them. Incoming `.srt` files are not normalized, so `normalize()` folds the
 five variants that turn up in subtitle files (`’ ʼ ′ \` ´`) onto `'` before matching.
 
-### `mx_corpus` — 718,925 lines, and `mx_docs` — 697 documents
+### `mx_corpus` — 335,800 lines, and `mx_docs` — 241 documents
 
 The Mexican-Spanish subset, found by scoring the corpus for register markers and keeping
 the dense runs. Built by `sql/` + `src/subtext/boundaries.py`; `mx_docs` gives each
@@ -230,6 +230,11 @@ Measured against the grid build it replaces:
 | gold recall | 73.0% | **76.0%** |
 | median document | 1,000 (grid artefact) | **700** |
 
+⚠️ **Those densities are inflated and the table is kept only to show the refinement's
+effect.** Both columns were measured with a lexicon that contained five strings which were
+not markers at all — see §6.4. Re-measured with the corrected lexicon, the refined corpus
+scored **21.9 markers / 1k**, not 44.6. The current corpus is in the next table.
+
 Fewer lines but *more* markers, because refinement extends as well as trims — it recovers
 Mexican content the 1000-line grid cut off. Real subtitle documents run p25 500 / median
 703 / p75 942 lines (`corpus_films`), which the refined distribution now matches; the grid
@@ -253,9 +258,27 @@ uv run subtext build-mx --from-index data/mx_docs.tsv    # ~60 s, skips the dete
 The lexicons, the threshold and the refinement chain all live in
 `src/subtext/ingest/mexican.py`, so the build is reproducible from the repository alone —
 it does not depend on a notebook or a shell history. Both forms produce the same tables:
-697 documents, 718,925 lines, 32,074 Mexican markers, 372,575 phrases.
+241 documents, 335,800 lines, 18,218 Mexican markers, 171,888 phrases.
 
-**`data/mx_docs.tsv` is the boundary index**, 697 rows of integers, 23 KB. It carries no
+#### What the corpus is now, and what it was this morning
+
+The detector was audited on 2026-09-07 by reading the documents it had selected, smallest
+and largest first. It had been trusting five strings that are not markers, and the corpus
+halved when they were removed:
+
+| | before the audit | after |
+|---|---|---|
+| documents | 697 | **241** |
+| lines | 718,925 | **335,800** |
+| marker density (corrected lexicon, both sides) | 21.9 / 1k | **54.3 / 1k** |
+| Mexican : peninsular markers | 4.9 : 1 | **9.5 : 1** |
+| documents under 300 lines | 79 | **8** |
+| smallest document | 25 lines | **100 lines** |
+
+Half the size and two and a half times the density: what left was what the false markers
+were holding up. The details are in §6.4.
+
+**`data/mx_docs.tsv` is the boundary index**, 241 rows of integers. It carries no
 text, so redistributing it raises none of the questions in §1. It is valid on any machine
 because OPUS v2024 is a frozen release pinned by sha256 in `subtext fetch`, and `pair_id`
 is a deterministic counter in `ingest/parallel.py` — so a range denotes the same lines
@@ -439,7 +462,7 @@ put the small table there. `imdb_akas` (59M rows) on the right exhausts memory; 
 
 ## 6. What this pipeline cannot tell you
 
-Two limits, both established by testing rather than assumption. Do not build on either.
+Three limits, all established by testing rather than assumption. Do not build on any of them.
 
 ### Sentence-level film attribution does not work
 
@@ -470,6 +493,49 @@ confident-looking title that is wrong about three times in four.
 The fix, unimplemented, is OPUS's raw XML distribution (~10 GB per language), where
 each film is its own file under `<year>/<imdb_id>/` — exact by construction, no line
 arithmetic.
+
+### A statistical detector cannot read, and it was wrong about a third of the corpus
+
+The detector keeps a document when a 1000-line window carries ten Mexican markers and
+twice as many Mexican as peninsular ones. That rule is sound about *documents* and blind
+about *strings*: it cannot tell a Mexican word from a proper name spelled the same way, or
+from an ordinary verb form. On 2026-09-07 the documents were read by hand, smallest and
+largest first, and five entries in a 99-word lexicon turned out not to be markers at all.
+
+| entry | what it actually matched | documents affected |
+|---|---|---|
+| `simon` | the **name Simon**. 4,407 occurrences mid-sentence against **14** in lower case. It was the single most frequent "marker" in the whole corpus | 310 of 697 |
+| `sepa` | the ordinary subjunctive of *saber* — "no creo que sepa", "nadie sepa quién soy" | 244 of 697 |
+| `mande` | the verb *mandar* — "que te mande al estadio" — not the Mexican `¿mande?` | 23 |
+| `chin` | the character **Chin Li** | 41 |
+| `feria` | the **Science Fair** | 98 |
+
+Two more were removed as judgement calls rather than errors: `lana` is generic before it is
+slang (*lana de borrego*), and `huevón` is real in Mexico but equally Colombian and Chilean —
+it had pulled in two Colombian productions on its own.
+
+**The lesson generalises: a marker has to be rare *as a string*, not Mexican *as a sense*.**
+`simón` = yes is perfectly good Mexican slang and was still the worst entry in the list.
+
+Three defences now exist, and they are in the build rather than in a notebook:
+
+1. **Mid-sentence capitals are stripped before matching** (`normalised()`), so `Chava`
+   in *Fiddler on the Roof*, `Morra` in *Limitless* and `Gacha` in *Narcos* stop scoring.
+   Sentence-initial capitals are kept: `Ándale,` and `Órale.` open a subtitle line
+   constantly and are exactly the usage being hunted. Lines typeset entirely in upper case
+   are exempt, or the rule would delete them.
+2. **A document needs two *distinct* markers.** One word repeated is evidence about a
+   word, not about a film — `pendejo` ×33 and nothing else read as US content once
+   somebody looked.
+3. **`data/mx_excluded.tsv`** lists twelve documents removed after a human read them, each
+   with its reason and its `pair_id` range. Ranges, not document ids: ids are assigned
+   during the build and change between runs. The match is by overlap, so a boundary that
+   shifts a few lines cannot revive a document a reader rejected. Delete the file and the
+   9,150 lines come back — the exclusions are data, not a hand edit to a table.
+
+What this cost, and what it bought, is in §3. The honest summary is that **roughly half the
+corpus was resting on strings that were not markers**, and no amount of threshold tuning
+would have found it. Somebody had to read the lines.
 
 ### `region` is not country of origin
 

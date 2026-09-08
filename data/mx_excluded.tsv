@@ -1,0 +1,37 @@
+# Documents removed from mx_corpus after reading them by hand.
+#
+# The detector selects documents statistically, and statistics cannot tell a Mexican
+# marker from a proper name that happens to be spelled the same way. Every row here was
+# read line by line on 2026-09-07 by Bruno Gupa, a professional translator, and removed
+# for the reason given. Nothing was removed for scoring badly; each one was checked.
+#
+# Ranges are `pair_id`, which is a deterministic counter over the OPUS bitext and is
+# therefore stable across rebuilds. Document ids are NOT stable -- they are assigned in
+# order during the build -- so they are recorded only as a hint about the run that found
+# each row.
+#
+# Reproduce: `subtext build-mx` applies this file automatically. Delete the file and the
+# 1,425 lines come back, which is the point -- the exclusions are data, not a hand edit
+# to a table, and a judge can see exactly what was taken out and why.
+#
+# lo	hi	lines	reason	found_as
+16863925	16864024	100	one marker only (`morros`), repeated; nothing else in the document	doc31
+22258500	22258624	125	one marker only (`pendejo`), repeated; pan-Latin-American, not decisive	doc38
+40337750	40337949	200	one marker only (`pendejo`), repeated; pan-Latin-American, not decisive	doc75
+14279925	14280149	225	`codo` is the elbow, not the slang: "Baja el codo", "Pon el codo ahí" (arm wrestling)	doc23
+36334450	36334574	125	`wey` is a character called Wey: "La madre de Wey, un alumno de 3o año"	doc65
+70757425	70757624	200	`chale` is a character called Chale: "Soy Chale", "Quien es Chale?"	doc122
+83054175	83054374	200	`chava` is Chava in Fiddler on the Roof: "Chava se casa con Natasha"	doc167
+46570375	46570624	250	reads Colombian, not Mexican: `huevon`, `ponerse las pilas`, "Si, Negra", constant usted	doc89
+#
+# Added after sampling the 45 documents of 2,000+ lines (2026-09-07). Forty-three of the
+# forty-five were unambiguous -- 28 to 50 distinct Mexican markers each. These two were not,
+# and both are large, which is why sampling the big documents mattered as much as the small
+# ones: a single bad document here costs more lines than all eight small ones combined.
+69181425	69184499	3075	`morra` is Senator Morra in the series Limitless; `mande` is the verb mandar. Zero real markers in 3,075 lines	doc113
+83421750	83424074	2325	Colombian, not Mexican: `huevon` x27 with "ese man", "cierto?" and the Colmenares case	doc162
+#
+# Added after reading the eight documents left with only two distinct markers (2026-09-07).
+# The other six read as thin but genuinely Mexican and were kept.
+45119750	45120774	1025	`pendejo` is the only marker in 1,025 lines; pan-Latin-American on its own, and the content reads as US	doc74
+83110075	83111374	1300	`hueva` x36 is not the Mexican sense: "ponerle una letra a la hueva", "si esta hueva explota"	doc145
