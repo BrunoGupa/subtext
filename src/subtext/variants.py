@@ -144,6 +144,11 @@ class Variant:
     #: is the signal the page needs: no gender marked, no choice to offer.
     gender: "Gender | None" = None
     other_gender: str = ""
+    #: Attested renderings of this cue, in this form of address, that were not chosen.
+    #: They are quotations, so they are shown as their translator wrote them: regendering
+    #: one to match a reader's preference would keep the `pair_id` while changing the line
+    #: it points at, which is the one thing this project must not do.
+    alternatives: tuple = ()
 
     @property
     def weakly_grounded(self) -> bool:
@@ -382,6 +387,17 @@ def check_output(line: str, *, ask) -> tuple[Address, bool, str]:
     return form, bool(data.get("well_formed", True)), str(data.get("fix", "")).strip()
 
 
+#: An attested rendering has to be this close to the cue before it is offered as an
+#: alternative. Below it the line is precedent for the register and nothing more -- it
+#: answers a different sentence, and putting it under the chosen line as a second option
+#: would invite a reader to pick it.
+ALTERNATIVE_SIMILARITY = 0.80
+
+#: How many alternatives are shown. Two, because the point is that the choice is real, not
+#: to hand a reviewer a list to grade.
+ALTERNATIVES = 2
+
+
 #: The other axis English leaves open. `you` marks no gender, so `I don't wanna kill you`
 #: is `matarlo` or `matarla` and the source cannot settle it; neither can the corpus, which
 #: is why this is a preference the reader sets rather than something retrieved. It is read
@@ -400,7 +416,10 @@ REGENDER_INSTRUCTION = """\
 You are given one Mexican Spanish subtitle line that is already decided, and one job:
 flip the gender of the PERSON it agrees with. This is a change of AGREEMENT, not of wording.
 
-THE LINE, as written:
+THE ENGLISH IT COMES FROM:
+{cue}
+
+THE SPANISH LINE, as written:
 {spanish}
 
 Rules:
@@ -411,13 +430,18 @@ Rules:
 - Do NOT change the gender of a thing. `el coche` stays `el coche`; only the gender of a
   PERSON — whoever is spoken to, or whoever is speaking — moves.
 - If the line marks nobody's gender, there is nothing to flip. Output NONE.
+- If the ENGLISH already settles that person's gender, there is no choice to offer and you
+  must output NONE. `he`, `she`, `him`, `her`, `guy`, `bitch`, `sir`, `ma'am`, `brother`
+  and a person's name all settle it. Only flip what English left open — `you`, `I`, `we`,
+  `they` and anyone the English does not gender.
 - Otherwise output `M>` if the line AS GIVEN is masculine, or `F>` if it is feminine,
   and then the flipped line. Nothing else — no quotes, no explanation.
 
 Examples of the shape, not of the wording:
-    Estás muy cansado.  ->  M> Estás muy cansada.
-    No la quiero matar. ->  F> No lo quiero matar.
-    Súbete al coche.    ->  NONE
+    You're so tired.        / Estás muy cansado.   ->  M> Estás muy cansada.
+    I don't wanna kill you  / No lo quiero matar.  ->  M> No la quiero matar.
+    Get in the car.         / Súbete al coche.     ->  NONE   (marks nobody)
+    Tell that bitch to be cool / Dile a esa perra… ->  NONE   (English said `bitch`)
 
 ANSWER:
 """
@@ -448,7 +472,7 @@ MEXICAN SPANISH:
 """
 
 
-def _regender(spanish: str, *, ask) -> tuple["Gender | None", str]:
+def _regender(spanish: str, cue: str, *, ask) -> tuple["Gender | None", str]:
     """The gender this line agrees with, and the same line in the other one.
 
     One call, because the two facts arrive together: asked separately, a line already in
@@ -456,7 +480,7 @@ def _regender(spanish: str, *, ask) -> tuple["Gender | None", str]:
     feminine", and telling them apart cost a second question on every genderless line --
     which is most of them. The `M>` / `F>` prefix carries the direction instead.
     """
-    reply = _first_line(ask(REGENDER_INSTRUCTION.format(spanish=spanish)))
+    reply = _first_line(ask(REGENDER_INSTRUCTION.format(spanish=spanish, cue=cue)))
     if not reply or reply.upper().rstrip(".!") == REFUSAL:
         return None, ""
     marker, _, flipped = reply.partition(">")
@@ -465,6 +489,31 @@ def _regender(spanish: str, *, ask) -> tuple["Gender | None", str]:
     if not was or not flipped or flipped == spanish:
         return None, ""
     return was, flipped
+
+
+def alternatives_for(evidence, chosen: str, *, limit: int = ALTERNATIVES) -> tuple:
+    """The attested renderings this reading did not use, best first.
+
+    Ranked by how close the English is and then by how many translators agreed, which is
+    the same order `find_precedent` defends: a misaligned row is almost always a lone
+    reading of a line several others agree on.
+    """
+    seen = {_key(chosen)}
+    out = []
+    for p in sorted(tuple(evidence.precedents) + tuple(evidence.shared),
+                    key=lambda p: (-p.similarity, -p.consensus, -p.times)):
+        if p.similarity < ALTERNATIVE_SIMILARITY or _key(p.spanish) in seen:
+            continue
+        seen.add(_key(p.spanish))
+        out.append(p)
+        if len(out) == limit:
+            break
+    return tuple(out)
+
+
+def _key(text: str) -> str:
+    """Two renderings that differ only in punctuation or a leading dash are one option."""
+    return re.sub(r"[^a-záéíóúüñ ]", "", text.lower()).strip()
 
 
 def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
@@ -573,7 +622,7 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         # Asked per reading and not once per cue: gender can appear in the declension even
         # when the decided wording has none. `No te quiero matar.` marks nobody -- `te` is
         # the same for either -- while its usted reading has to choose `lo` or `la`.
-        gender, other = _regender(spanish, ask=ask) if spanish else (None, "")
+        gender, other = _regender(spanish, cue, ask=ask) if spanish else (None, "")
 
         out.append(Variant(
             form=evidence.form,
@@ -593,6 +642,7 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
             agreed=agreed,
             gender=gender,
             other_gender=other,
+            alternatives=alternatives_for(evidence, spanish),
         ))
     return out
 

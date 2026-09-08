@@ -225,7 +225,7 @@ def test_a_line_that_marks_nobody_gender_offers_no_choice():
     per reading: `Cállate.` cannot be feminine, so there is nothing for a button to do."""
     from subtext.variants import _regender
 
-    gender, other = _regender("Cállate.", ask=lambda _p: "NONE")
+    gender, other = _regender("Cállate.", "Shut up!", ask=lambda _p: "NONE")
     assert gender is None and other == ""
 
 
@@ -235,10 +235,11 @@ def test_the_direction_comes_back_with_the_flip():
     cost a second question on every genderless line -- which is most of them."""
     from subtext.variants import Gender, _regender
 
-    was, other = _regender("No quiero matarlo.", ask=lambda _p: "M> No quiero matarla.")
+    was, other = _regender("No quiero matarlo.", "I don't wanna kill you",
+                          ask=lambda _p: "M> No quiero matarla.")
     assert was is Gender.MASCULINE and other == "No quiero matarla."
 
-    was, other = _regender("Estoy cansada.", ask=lambda _p: "F> Estoy cansado.")
+    was, other = _regender("Estoy cansada.", "I'm tired.", ask=lambda _p: "F> Estoy cansado.")
     assert was is Gender.FEMININE and other == "Estoy cansado."
 
 
@@ -247,7 +248,8 @@ def test_an_answer_without_a_direction_is_not_trusted():
     started in would put a wrong label on a button."""
     from subtext.variants import _regender
 
-    assert _regender("Estás cansado.", ask=lambda _p: "Estás cansada.") == (None, "")
+    assert _regender("Estás cansado.", "You're tired.",
+                     ask=lambda _p: "Estás cansada.") == (None, "")
 
 
 def test_the_regender_prompt_moves_people_and_not_things():
@@ -256,3 +258,7 @@ def test_the_regender_prompt_moves_people_and_not_things():
     flat = " ".join(REGENDER_INSTRUCTION.split())
     assert "change of AGREEMENT, not of wording" in flat
     assert "`el coche` stays `el coche`" in flat
+    # Same rule the person axis follows: the source settles it, or there is no choice.
+    # Without this the flip fired on `Tell that bitch to be cool` -> `esa perra` / `ese
+    # perro`, offering a reader a gender the English had already stated.
+    assert "If the ENGLISH already settles that person's gender" in flat
