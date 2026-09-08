@@ -10,7 +10,7 @@ If you would rather run it yourself, skip to [Reproducing it](#reproducing-it).
 
 Ask a language model for "Mexican Spanish" and it produces a stereotype. Ask this corpus
 and you get what Mexican subtitlers actually wrote, with counts and citations. `evidence-pack.tsv`
-is the retrieval output for everyday English phrases: 20 rows covering 17 distinct register markers.
+is the retrieval output for everyday English phrases: 20 rows covering 15 distinct register markers.
 
 A few rows, to show the shape:
 
@@ -20,7 +20,7 @@ A few rows, to show the shape:
 | Your jacket is in the dresser. | Oye, tu **chamarra** está en el vestidor. | Spain says *cazadora* |
 | -Cool, brother. | - **Chido**, **carnal**. | two markers in four words |
 | Because... I want to talk to you. | Porque quiero **platicar** contigo. | Spain says *hablar* |
-| You guys are serious. | **Ustedes** hablan en serio. | never *vosotros* — 59 of those in 718,925 lines |
+| You go. | Vayan **ustedes**. | never *vosotros* — 39 of those in 335,800 lines |
 
 Note the three rows for *car*: **auto**, **carro** and **coche** all appear. The corpus does
 not pretend the choice is uniform, and that honesty is the point — a model asked to sound
@@ -61,10 +61,16 @@ Or derive the boundaries from scratch instead, which adds one full scan:
 uv run subtext build-mx
 ```
 
-Both produce the same tables — 697 documents, 718,925 lines, 32,074 Mexican markers,
-372,575 indexed phrases. The shipped index is valid on any machine because OPUS v2024 is a
+Both produce the same tables — 241 documents, 335,800 lines, 18,218 Mexican markers,
+171,888 indexed phrases. The shipped index is valid on any machine because OPUS v2024 is a
 frozen release pinned by sha256 in `subtext fetch`, and `pair_id` is a deterministic counter,
 so range 66,247,250–66,251,924 means the same lines everywhere.
+
+**`pair_id` is stable across builds; `doc_id` is not.** Document numbers are assigned in
+order as the boundaries are derived, so the 2026-09-07 audit — which read the documents and
+removed twelve — renumbered every one of them, 697 down to 241. Cite a line by `pair_id`.
+The `doc_id` column here is correct for the corpus this repository ships and has to be
+re-read after any rebuild that changes the boundaries.
 
 ## What this demo does not show
 

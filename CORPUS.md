@@ -332,7 +332,7 @@ wording never occurs.
 | model | `sentence-transformers/all-MiniLM-L6-v2`, 384 dimensions |
 | runs on | the CPU, locally — **no API, no key, no cost** |
 | build | `uv run subtext embed-mx`, **85 s** for the whole corpus (6,790 lines/s) |
-| stored | one vector per *distinct* English line: 577,035 of 718,925 rows (80.3%) |
+| stored | one vector per *distinct* English line: 269,869 of 335,800 rows (80.4%) |
 | query | HNSW index, **6 ms** — against 41 ms for a full scan, at 100% recall@10 |
 | index | `vector_similarity('hnsw','cosineDistance',384)`, 496 MB, 34 s to build |
 
@@ -402,9 +402,9 @@ in attested usage — and it was rejecting attested usage.
 
 `localise.py` now separates them. **`NOT_MEXICAN`** (25 forms) can fail a line and holds
 only two kinds of thing: Spain's second-person-plural morphology, which Mexico does not
-have at all — the 59 `vosotros` lines in the corpus carry Spain verb forms with them
+have at all — the 39 `vosotros` lines in the corpus carry Spain verb forms with them
 (*llegáis*, *esperáis*, *hacéis*) and are the documented contamination, not usage — and
-words attested at most twice in 718,925 lines, where an occurrence is likelier to *be* the
+words attested at most twice in the Mexican corpus, where an occurrence is likelier to *be* the
 0.46% leak than evidence of usage. Everything else is **`WATCH`**: reported to a human,
 never fatal.
 
