@@ -76,6 +76,19 @@ _CHECK_LABELS = {"tu": Address.TU, "tú": Address.TU, "usted": Address.USTED,
 #: The model's way of saying a reading does not apply to this line.
 REFUSAL = "NONE"
 
+#: Below this, the nearest thing the corpus offered is not close enough to have taught the
+#: model anything about the cue, and `grounded` becomes a claim the evidence cannot support.
+#:
+#: `Helps fellatio.` is the case that produced it. Every neighbour scored 0.47-0.55 and all
+#: of them matched on *helps*: `It helps.` -> `Eso ayuda.`, `It gives you the squirts.` ->
+#: `Te dan diarrea.` Nothing about the difficult half of the line came back at all, so the
+#: model wrote `felación` unaided -- a word occurring **zero** times in 335,800 lines of
+#: Mexican subtitling, where `mamada` occurs 206 times at 21x enrichment.
+#:
+#: The line was still reported as grounded, because `grounded` only asked whether anything
+#: came back. It now also asks whether anything came back *close*.
+WEAK_SIMILARITY = 0.65
+
 
 @dataclass(frozen=True)
 class VariantEvidence:
@@ -115,6 +128,15 @@ class Variant:
     #: False when the grammar check still failed after the retry. The line is returned
     #: anyway, flagged, rather than dropped: a reviewer needs to see what came out.
     well_formed: bool = True
+    #: The closest precedent behind this reading. Below `WEAK_SIMILARITY` the evidence is
+    #: too far away to have grounded anything, whatever `grounded` says.
+    top_similarity: float = 0.0
+
+    @property
+    def weakly_grounded(self) -> bool:
+        """Precedent came back, but none of it close. Worse than none, because it reads
+        as support while the model was in fact writing unaided."""
+        return self.grounded and self.top_similarity < WEAK_SIMILARITY
 
 
 def _looks_untranslated(english: str, spanish: str) -> bool:
@@ -411,6 +433,9 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
             # correct lines state nothing -- only stating the *wrong* one is.
             form_confirmed=(form is evidence.form or form is Address.UNMARKED),
             well_formed=well_formed,
+            top_similarity=max((p.similarity for p in
+                                tuple(evidence.precedents) + tuple(evidence.shared)),
+                               default=0.0),
             grounded=bool(evidence.precedents or evidence.shared),
         ))
     return out

@@ -132,6 +132,19 @@ NOT_MEXICAN: tuple[str, ...] = (
     "molar", "mola", "pijo", "aparcar", "chavales",
     # `pajita` removed 2026-09-04 at Bruno's call: it is ordinary vocabulary rather than
     # Spain-only slang, and a single occurrence is not grounds for a blocklist entry.
+    #
+    # The reflexive imperatives of *joder*, added 2026-09-07 at Bruno's call and measured
+    # before acting on it. The family splits, so the entries are the forms and not the verb:
+    #
+    #     joder    0.4x     jodete   0.9x     jodanse  1.6x (3 lines)     jodase  0x
+    #     no jodas 5.7x  <- genuinely Mexican, deliberately NOT listed
+    #     chinga tu madre 188x · chingue a su madre 176x · chinguen a su madre 120x
+    #
+    # `Fuck you!` was returning `¡Chinga tu madre!` / `¡Chingue a su madre!` / **`¡Jódanse!`**,
+    # so the plural broke a set the other two got right. `jódete` at 0.9x is *less* common in
+    # Mexican productions than in Spanish subtitles at large; the chingar forms are two orders
+    # of magnitude more Mexican. Listing the verb would have taken `no jodas` with it.
+    "jodete", "jodanse", "jodase", "jodeos",
 )
 
 #: Forms from *other* Latin American varieties. The gate had no defence against these at
