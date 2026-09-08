@@ -1,37 +1,86 @@
-# Subtext — search what they meant, not what they said
+# Subtext — the Spanish a Mexican subtitler actually wrote
 
-*A text-to-SQL + hybrid-retrieval agent over a film and TV dialogue corpus.*
+*Retrieval-grounded localisation of film dialogue into Mexican Spanish, over 103.6 million
+subtitle pairs in ClickHouse.*
 
 **Agentic Cinema: The Blockbuster Hackathon (Google Cloud) — ClickHouse track.**
-Deadline **Sept 9, 2026, 2:00 PM PDT**.
+Deadline **Sept 9, 2026, 2:00 PM PDT**. Apache-2.0.
 
-An agent that answers questions about a film/TV corpus that could not be answered any other
-way — by planning a query, running it against ClickHouse, and validating its own answer
-against the data before it speaks.
+## The problem, and it is documented
 
-The demo question that defines the project:
+Ask any language model to translate a line into "Mexican Spanish" and it will hand you a
+stereotype: `carro`, `chamarra`, `güey`, whether or not a Mexican translator would have
+written them. Ask a subtitle corpus and you get something different — but not what you
+might expect, because **subtitling deletes swearing as a matter of professional routine.**
 
-> *"How many times across six seasons does this character break a promise?"*
+That is not our claim. It is the finding of the audiovisual translation literature, measured
+independently on different films, different target languages and different decades:
 
-There is no `broke_a_promise` column. SQL alone cannot answer it, and neither can semantic
-search alone — you need **both**: vector similarity finds candidate lines, SQL aggregates and
-filters them by season, character and timecode.
+| study | film | target | what it measured |
+|---|---|---|---|
+| Ávila-Cabrera (2015) | *Pulp Fiction* | European Spanish | **41.8%** of the offensive/taboo load never reaches the subtitle — 27.7% omitted outright, 14.1% neutralised. Omission is the single most used strategy at **27.2%** |
+| Rohmawati (2021) | *Deadpool 1 & 2* | Indonesian | deletion is the **most frequent** strategy in *Deadpool Two*: 65 of 166 instances (**39%**), 29% in the first film |
+| Hawel (2020) | *The Wolf of Wall Street* | Arabic | of 506 swearing instances, **72.9%** omitted, 25.1% softened |
 
-It is also, measurably, the hardest question in the golden set — `line`-level chunking misses
-it entirely at k=20, and [`evals/results.md`](evals/results.md) §4 explains exactly why and
-what would fix it. That writeup is the part of this repo worth reading first.
+We then measured the same effect on our own corpus, without looking for it: of **688,351**
+English lines containing *fuck*, **39.6% lose all profanity marking in Spanish** (CORPUS.md
+§5). Four measurements, four corpora, one direction.
+
+So a subtitle corpus tells you what the profession *permits*, not what the language *has*.
+Two consequences follow, and the whole system is built on them:
+
+**1. Frequency is the wrong ranking.** `¡Jódete!` is the most frequent rendering of
+`Fuck you!` inside our Mexican corpus, and it is **0.9× enriched** — it appears *less* often
+in Mexican productions than in Spanish subtitles at large. `¡Chinga tu madre!` is rarer there
+and **188×** enriched. Ranking by frequency reproduces the convention; ranking by enrichment
+against the full 103.6M lines recovers what is Mexican.
+
+**2. There is no single right answer.** English `you` is tú, usted and ustedes at once, and a
+subtitle line arrives with no scene attached. `Get in the car.` appears in this corpus as
+`Súbete al coche.`, `Súbase.` and `- Entren al carro.`, in three different films. Returning
+one line means choosing silently, by accident. So this returns **every reading the corpus
+attests**, each grounded in its own evidence and each citable by `pair_id`:
+
+```
+$ uv run subtext localise "Shut up!"
+EN  Shut up!
+
+ES  ¡Cállate!    [tú]        cited: pair_id 13142143, 83689621, 83067397
+ES  ¡Cállese!    [usted]     cited: pair_id 84948787, 81922469, 2911163
+ES  ¡Cállense!   [ustedes]   cited: pair_id 12557894, 63519068, 88388771
+```
+
+Nothing there was written by a model. Each line was written by a Mexican subtitler, and the
+`pair_id` says which one.
+
+## How it is evaluated, and who chose the phrases
+
+A test set chosen by the people who built the system proves nothing, so the origin of every
+phrase travels with its row — see [`evals/test-set-sources.md`](evals/test-set-sources.md).
+The strongest group comes first: **lines selected by published translation scholars as cases
+of difficulty**, with the official Spanish subtitle the paper prints, and the citation
+attached. Below them, phrases chosen by the American Film Institute; then lines selected by
+rendering entropy over the **full** corpus rather than over the Mexican slice, which would
+have been circular; every one verified absent from the corpus this system retrieves from.
+
+Lines the system cannot answer stay in the set on purpose. Coverage only means something if
+the failures are counted with it.
 
 ## Quick start
 
-Needs Docker and [uv](https://docs.astral.sh/uv/). No accounts, no downloads, no API key for
-everything except the agent itself.
+Needs Docker and [uv](https://docs.astral.sh/uv/). The corpus is fetched from its original
+host at run time and never redistributed here — see CORPUS.md §1.
 
 ```bash
-make demo      # .env + ClickHouse + deps + schema + corpus + embeddings
-make serve     # the web UI on http://127.0.0.1:8000
-make eval      # recall@k and the abstention curve over the golden set
-make sweep     # 3 chunk strategies x 5 values of k
+make demo                              # .env + ClickHouse + deps + schema
+make fetch                             # the OPUS + IMDb corpora (~4.2 GB, one time)
+make corpus                            # build the Mexican corpus + embeddings (~1.5 min)
+make localise L="What the fuck?"       # one English line, every Mexican reading
+make serve                             # the web UI on http://127.0.0.1:8000
 ```
+
+`subtext localise --evidence-only` shows what was retrieved without writing a translation,
+so the retrieval can be inspected on its own.
 
 The UI has three tabs. **Agent** needs a Gemini key; **Hybrid count** and **Semantic search**
 do not, and the app opens on the hybrid tab when no key is set. Every tab shows its working —
