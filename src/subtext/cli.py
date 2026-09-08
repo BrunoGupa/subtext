@@ -341,7 +341,10 @@ def cmd_localise(args: argparse.Namespace) -> int:
     variants = translate_variants(args.cue, ask=_asker(args.model), model=args.model)
     print(f"EN  {args.cue}")
     if not variants:
-        print("    no reading could be produced")
+        # Every reading was refused, which is the pipeline working: the model declines a
+        # reading the line rules out. It is not the provider blocking the content -- that
+        # arrives as a reading marked NO ANSWER above.
+        print("    no reading survived -- every form of address was refused for this line")
         return 1
     for v in variants:
         label = "" if v.form.value == "unmarked" else f"[{v.form.value}]"
@@ -362,6 +365,8 @@ def cmd_localise(args: argparse.Namespace) -> int:
             flags.append("agreed rendering: " + ", ".join(v.agreed))
         if v.gender:
             flags.append(f"{v.gender.value} -- {v.gender.other.value}: {v.other_gender}")
+        if not v.answered:
+            flags.append(f"NO ANSWER -- the model returned nothing ({v.block_reason})")
         if not v.well_formed:
             flags.append("GRAMMAR -- failed the check after one retry")
         if not v.form_confirmed:
@@ -387,8 +392,20 @@ def _asker(model: str | None = None):
     )
 
     def ask(prompt: str) -> str:
-        return client.models.generate_content(
-            model=name, contents=prompt, config=config).text or ""
+        from .variants import BLOCKED
+
+        response = client.models.generate_content(
+            model=name, contents=prompt, config=config)
+        text = response.text or ""
+        if text.strip():
+            return text
+        # No text. Say why, so a blank line downstream can be explained rather than read
+        # as the pipeline declining the reading -- which is a different event entirely.
+        reason = getattr(getattr(response, "prompt_feedback", None), "block_reason", None)
+        if reason is None:
+            candidates = getattr(response, "candidates", None) or []
+            reason = getattr(candidates[0], "finish_reason", None) if candidates else None
+        return f"{BLOCKED} {getattr(reason, 'name', reason) or 'empty response'}"
 
     return ask
 

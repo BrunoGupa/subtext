@@ -141,6 +141,12 @@ def _localise(line: str) -> dict[str, Any]:
                 "similarity": round(v.top_similarity, 2),
                 "well_formed": v.well_formed,
                 "not_mexican": v.not_mexican,
+                # A reading the model did not answer is not a refusal and must not be
+                # rendered as one -- see `variants.BLOCKED`.
+                "answered": v.answered,
+                "block_reason": v.block_reason,
+                "gender": v.gender.value if v.gender else None,
+                "other_gender": v.other_gender,
             }
             for v in variants
         ],

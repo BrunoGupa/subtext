@@ -262,3 +262,38 @@ def test_the_regender_prompt_moves_people_and_not_things():
     # Without this the flip fired on `Tell that bitch to be cool` -> `esa perra` / `ese
     # perro`, offering a reader a gender the English had already stated.
     assert "If the ENGLISH already settles that person's gender" in flat
+
+
+# --- Three outcomes, told apart ----------------------------------------------------
+
+def test_a_blocked_answer_is_not_reported_as_a_refusal():
+    """A refusal is this pipeline working -- it declines a reading the line rules out.
+    A block is the provider declining to answer. Both used to arrive as an empty string
+    and produce the same blank row, which is what would have let a blocked line be
+    described as a policy when it was our own NONE, or the reverse."""
+    from subtext.variants import BLOCKED
+
+    variants = translate_variants(
+        "Am I a nigger?", ask=lambda _p: f"{BLOCKED} SAFETY",
+        tag_forms=lambda lines: [Address.UNMARKED] * len(lines))
+    assert len(variants) == 1
+    assert not variants[0].answered
+    assert variants[0].block_reason == "SAFETY"
+    assert variants[0].spanish == ""
+
+
+def test_an_empty_reply_is_also_unanswered_and_says_so():
+    variants = translate_variants(
+        "Shut up!", ask=lambda _p: "   ",
+        tag_forms=lambda lines: [Address.TU] * len(lines))
+    assert variants and not variants[0].answered
+    assert variants[0].block_reason == "no reason given"
+
+
+def test_every_reading_refused_returns_nothing_at_all():
+    """Distinct from unanswered: there is no reading to show, and the caller can tell the
+    two apart by whether it got a Variant back."""
+    variants = translate_variants(
+        "And I will strike down upon thee", ask=lambda _p: "NONE",
+        tag_forms=lambda lines: [Address.TU] * len(lines))
+    assert variants == []

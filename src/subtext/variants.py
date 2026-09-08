@@ -77,6 +77,15 @@ _CHECK_LABELS = {"tu": Address.TU, "tú": Address.TU, "usted": Address.USTED,
 #: The model's way of saying a reading does not apply to this line.
 REFUSAL = "NONE"
 
+#: What an asker returns when the model produced no text at all, followed by the reason it
+#: gave. A blocked answer and a refused reading are different events and the difference is
+#: the one a reader needs: a refusal is this pipeline working -- it declines a reading the
+#: line rules out, which is why `Brindo por usted, niña.` does not happen -- while a block
+#: is the provider declining to answer, and only one of the two is honest to describe as a
+#: policy. Left undistinguished they both arrive as an empty string and the row silently
+#: shows nothing.
+BLOCKED = "BLOCKED>"
+
 #: Below this, the nearest thing the corpus offered is not close enough to have taught the
 #: model anything about the cue, and `grounded` becomes a claim the evidence cannot support.
 #:
@@ -129,6 +138,10 @@ class Variant:
     #: False when the grammar check still failed after the retry. The line is returned
     #: anyway, flagged, rather than dropped: a reviewer needs to see what came out.
     well_formed: bool = True
+    #: False when the model returned no text for this reading. `block_reason` carries what
+    #: it said about why -- a safety category, a token limit, or nothing at all.
+    answered: bool = True
+    block_reason: str = ""
     #: The closest precedent behind this reading. Below `WEAK_SIMILARITY` the evidence is
     #: too far away to have grounded anything, whatever `grounded` says.
     top_similarity: float = 0.0
@@ -568,7 +581,21 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
                 spanish=decided,
                 who=f"{who} — {description}" if who else description,
                 grammar=_GRAMMAR[evidence.form])
-        spanish = _first_line(ask(prompt))
+        reply = ask(prompt)
+
+        # No text came back. That is not a refusal and must not be reported as one: the
+        # reading is offered as unanswered, with whatever reason the provider gave, so a
+        # blank row can be explained instead of guessed at.
+        if not reply.strip() or reply.startswith(BLOCKED):
+            out.append(Variant(
+                form=evidence.form, spanish="", answered=False,
+                block_reason=reply[len(BLOCKED):].strip() or "no reason given",
+                pair_ids=evidence.pair_ids[:limit], agreed=agreed,
+                grounded=bool(evidence.precedents or evidence.shared or agreed),
+            ))
+            continue
+
+        spanish = _first_line(reply)
 
         # The model was given the right to refuse a reading the line rules out -- usted to
         # somebody the line calls `kid`. A refused reading is not offered at all, which is
