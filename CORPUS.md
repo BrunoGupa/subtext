@@ -227,8 +227,15 @@ Measured against the grid build it replaces:
 | Mexican markers | 30,740 | **32,074** (+4.3%) |
 | marker density | 29.9 / 1k | **44.6 / 1k** (+49%) |
 | peninsular contamination | 0.485% | **0.459%** |
-| gold recall | 73.0% | **76.0%** |
+| gold marker retention | 73.0% | **76.0%** |
 | median document | 1,000 (grid artefact) | **700** |
+
+⚠️ **"Gold recall" was the wrong name for that row, before any of the rest went wrong.**
+Every word in `GOLD` is also in `MEXICAN`, so the number measures how much marked content
+the document threshold *keeps* — it says nothing about whether the detector generalises to
+markers it has never seen. It is retention, not recall, and it was never a held-out set.
+The code has said so in a comment since the set was written; the README and the session
+notes did not.
 
 ⚠️ **Those densities are inflated and the table is kept only to show the refinement's
 effect.** Both columns were measured with a lexicon that contained five strings which were
@@ -276,7 +283,32 @@ halved when they were removed:
 | smallest document | 25 lines | **100 lines** |
 
 Half the size and two and a half times the density: what left was what the false markers
-were holding up. The details are in §6.4.
+were holding up. The details are in §6.3.
+
+**The retention number barely moved: 76.0% → 74.3%.** Slightly over half the corpus was
+removed and three quarters of the marked content stayed, which is the same fact the density
+reports from the other side — the half that went carried almost no real markers.
+
+And the enrichment figures roughly doubled, because enrichment is a rate and the
+denominator shrank while the numerator did not:
+
+| phrase | before the audit | after |
+|---|---|---|
+| `no mames` | 131× | **277×** |
+| `¿qué pedo?` | 124× | **263×** |
+| `chinga tu madre` | 89× | **188×** |
+| `carajo` | 2.9× | **4.5×** |
+| `jódete` | 1.1× | **0.9×** |
+| `maldición` | 1.2× | **0.6×** |
+| `maldita sea` | 0.7× | **0.2×** |
+
+Read the bottom half, not the top: **`jódete` and `maldita sea` are now *below* 1**, meaning
+they appear *less* often in Mexican productions than in Spanish subtitles at large. Ranking
+renderings by raw frequency inside the corpus puts `¡Jódete!` first for `Fuck you!`, because
+subtitling neutralises profanity by convention — 39.6% of English `fuck` lines lose all
+profanity marking in Spanish (§5). Ranking by enrichment puts `¡Chinga tu madre!` first,
+which is what a Mexican speaker says. The corpus knows what subtitlers wrote; enrichment is
+what separates that from what is Mexican.
 
 **`data/mx_docs.tsv` is the boundary index**, 241 rows of integers. It carries no
 text, so redistributing it raises none of the questions in §1. It is valid on any machine
