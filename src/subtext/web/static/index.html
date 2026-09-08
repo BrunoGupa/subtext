@@ -1,297 +1,163 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Subtext</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap">
 <style>
-  :root{
-    --bg:#0d1117; --panel:#161b22; --panel-2:#1c2129; --line:#2a3038;
-    --ink:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --good:#3fb950; --warn:#d29922; --bad:#f85149;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-  header{padding:28px 20px 18px;border-bottom:1px solid var(--line)}
-  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
-  h1{margin:0;font-size:21px;letter-spacing:-.2px}
-  h1 span{color:var(--dim);font-weight:400}
-  .sub{color:var(--dim);margin:6px 0 0;font-size:13.5px}
-  .status{margin-top:12px;font-size:12.5px;color:var(--dim);font-family:var(--mono)}
-  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px}
-  .dot.on{background:var(--good)} .dot.off{background:var(--bad)}
-
-  .tabs{display:flex;gap:6px;margin:22px 0 14px}
-  .tab{padding:7px 14px;border:1px solid var(--line);border-radius:7px;background:transparent;
-       color:var(--dim);cursor:pointer;font-size:13.5px;font-family:inherit}
-  .tab[aria-selected=true]{background:var(--panel);color:var(--ink);border-color:#3d444d}
-
-  form{display:flex;gap:8px;flex-wrap:wrap}
-  input[type=text],select,input[type=number]{
-    background:var(--panel);border:1px solid var(--line);border-radius:7px;color:var(--ink);
-    padding:10px 12px;font:inherit;font-size:14px}
-  input[type=text]{flex:1;min-width:260px}
-  button.go{background:var(--accent);border:0;border-radius:7px;color:#05121f;padding:10px 18px;
-            font:inherit;font-weight:600;cursor:pointer}
-  button.go:disabled{opacity:.5;cursor:default}
-  .opts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;
-        font-size:12.5px;color:var(--dim)}
-  .opts label{display:flex;gap:6px;align-items:center}
-  .examples{margin:14px 0 0;font-size:12.5px;color:var(--dim)}
-  .examples button{background:none;border:0;color:var(--accent);cursor:pointer;font:inherit;
-                   padding:0;text-align:left;text-decoration:underline dotted}
-  .examples li{margin:4px 0}
-  ul{margin:6px 0;padding-left:18px}
-
-  section.out{margin:22px 0 60px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-        padding:16px 18px;margin:0 0 12px}
-  .card h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
-  pre{margin:0;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:12px;
-      overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;white-space:pre-wrap;
-      word-break:break-word}
-  table{width:100%;border-collapse:collapse;font-size:13.5px}
-  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--dim);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
-  td.num{font-family:var(--mono);color:var(--dim);white-space:nowrap}
-  .bar{display:inline-block;height:8px;background:var(--accent);border-radius:2px;min-width:2px;
-       vertical-align:1px;margin-right:7px}
-  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;font-family:var(--mono)}
-  .badge.ok{background:rgba(63,185,80,.15);color:var(--good)}
-  .badge.no{background:rgba(248,81,73,.15);color:var(--bad)}
-  .badge.un{background:rgba(210,153,34,.15);color:var(--warn)}
-  .quote{border-left:2px solid var(--line);padding-left:11px;margin:9px 0;color:var(--ink)}
-  .quote .meta{color:var(--dim);font-family:var(--mono);font-size:11.5px}
-  .err{border-color:var(--bad);color:#ffb4ae}
-  .muted{color:var(--dim)}
-  .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);
-        border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-1px}
-  @keyframes s{to{transform:rotate(360deg)}}
-  footer{border-top:1px solid var(--line);padding:18px 0 40px;color:var(--dim);font-size:12.5px}
-  a{color:var(--accent)}
+:root{
+  --ground:#FBFAF7; --ink:#161A18; --muted:#6A726E; --faint:#9AA19D;
+  --rule:#E4E2DA; --field:#FFFFFF; --mx:#1C6552; --mx-soft:#EAF2EE;
+  --warn:#8A6A1F; --bad:#9E3437;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+  --serif:"IBM Plex Serif",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#101312; --ink:#EAEBE5; --muted:#98A19C; --faint:#6E7773;
+  --rule:#272C2A; --field:#181C1A; --mx:#67C4A6; --mx-soft:#152A25;
+  --warn:#D6B45E; --bad:#E2807C;
+}}
+:root[data-theme="dark"]{
+  --ground:#101312; --ink:#EAEBE5; --muted:#98A19C; --faint:#6E7773;
+  --rule:#272C2A; --field:#181C1A; --mx:#67C4A6; --mx-soft:#152A25;
+  --warn:#D6B45E; --bad:#E2807C;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-weight:300;line-height:1.55;-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;align-items:center;}
+main{width:100%;max-width:680px;padding:0 24px;flex:1;
+  display:flex;flex-direction:column;justify-content:center;
+  padding-top:14vh;padding-bottom:60px;}
+.brand{font-family:var(--serif);font-size:15px;letter-spacing:.02em;
+  color:var(--muted);margin:0 0 6px}
+h1{font-family:var(--serif);font-weight:300;font-size:clamp(30px,5.4vw,46px);
+  line-height:1.15;letter-spacing:-.02em;margin:0 0 14px;text-wrap:balance}
+h1 em{font-style:italic;color:var(--mx)}
+.lede{color:var(--muted);margin:0 0 34px;max-width:52ch;font-size:16px}
+form{position:relative;display:flex;align-items:center;gap:10px;
+  background:var(--field);border:1px solid var(--rule);border-radius:999px;
+  padding:6px 6px 6px 22px;transition:border-color .15s,box-shadow .15s}
+form:focus-within{border-color:var(--mx);box-shadow:0 0 0 4px var(--mx-soft)}
+input{flex:1;border:0;background:transparent;color:var(--ink);
+  font:inherit;font-size:17px;padding:12px 0;outline:none;min-width:0}
+input::placeholder{color:var(--faint)}
+button{border:0;border-radius:999px;background:var(--ink);color:var(--ground);
+  font:inherit;font-size:14px;font-weight:500;padding:11px 22px;cursor:pointer;
+  white-space:nowrap;transition:opacity .15s}
+button:hover{opacity:.85}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,a:focus-visible{outline:2px solid var(--mx);outline-offset:2px}
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.examples span{font-size:13px;color:var(--faint);align-self:center;margin-right:2px}
+.ex{font:inherit;font-size:13px;background:transparent;color:var(--muted);
+  border:1px solid var(--rule);border-radius:999px;padding:5px 13px;cursor:pointer}
+.ex:hover{border-color:var(--mx);color:var(--mx)}
+#out{margin-top:40px}
+.status{color:var(--muted);font-size:15px}
+.reading{border-top:1px solid var(--rule);padding:20px 0}
+.reading:last-child{padding-bottom:0}
+.form-tag{font-family:var(--mono);font-size:11px;color:var(--mx);
+  border:1px solid var(--mx);border-radius:3px;padding:1px 6px;
+  letter-spacing:.04em;vertical-align:3px;margin-right:9px}
+.es{font-family:var(--serif);font-size:23px;font-weight:400;
+  display:inline;line-height:1.35}
+.cites{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:9px;
+  font-variant-numeric:tabular-nums}
+.flag{display:inline-block;font-size:11.5px;border-radius:3px;padding:2px 8px;
+  margin:9px 6px 0 0;border:1px solid}
+.flag.warn{color:var(--warn);border-color:var(--warn)}
+.flag.bad{color:var(--bad);border-color:var(--bad)}
+footer{width:100%;max-width:680px;padding:20px 24px 34px;color:var(--faint);
+  font-size:12.5px;border-top:1px solid var(--rule)}
+footer a{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<header><div class="wrap">
-  <h1>Subtext <span>— search what they meant, not what they said</span></h1>
-  <p class="sub">Vector similarity finds the moments; SQL counts them. One ClickHouse query, not two features.</p>
-  <div class="status" id="status"><span class="spin"></span> checking…</div>
-</div></header>
+<main>
+  <p class="brand">Subtext</p>
+  <h1>Escribe una línea en inglés.<br>Te digo cómo la escribió<br>un subtitulador <em>mexicano</em>.</h1>
+  <p class="lede">Sobre 335.800 líneas de subtítulo de producciones mexicanas. Nada se inventa:
+  cada respuesta viene con el <code>pair_id</code> de la línea que alguien escribió de verdad.</p>
 
-<div class="wrap">
-  <div class="tabs" role="tablist">
-    <button class="tab" role="tab" data-mode="agent" aria-selected="true">Agent</button>
-    <button class="tab" role="tab" data-mode="aggregate" aria-selected="false">Hybrid count</button>
-    <button class="tab" role="tab" data-mode="search" aria-selected="false">Semantic search</button>
-  </div>
-
-  <form id="form">
-    <input type="text" id="q" placeholder="Ask about the corpus…" autocomplete="off" required>
-    <button class="go" id="go" type="submit">Ask</button>
+  <form id="f" autocomplete="off">
+    <input id="q" name="q" placeholder="Shut up!" aria-label="Línea en inglés" required>
+    <button id="go" type="submit">Traducir</button>
   </form>
 
-  <div class="opts" id="opts">
-    <label>involving <input type="text" id="involving" size="8" placeholder="any"></label>
-    <label>season <input type="number" id="season" min="0" max="99" style="width:64px" placeholder="all"></label>
-    <label>chunks
-      <select id="strategy">
-        <option value="line">line</option>
-        <option value="window">window·3</option>
-      </select>
-    </label>
-    <label>k <input type="number" id="k" min="1" max="200" value="60" style="width:68px"></label>
-    <label>max distance <input type="number" id="maxd" min="0" max="2" step="0.05" value="0.75" style="width:72px"></label>
+  <div class="examples">
+    <span>Prueba:</span>
+    <button class="ex" type="button">Get in the car.</button>
+    <button class="ex" type="button">What the fuck?</button>
+    <button class="ex" type="button">Fuck you!</button>
+    <button class="ex" type="button">Come here.</button>
   </div>
 
-  <div class="examples" id="examples"></div>
+  <section id="out" aria-live="polite"></section>
+</main>
 
-  <section class="out" id="out"></section>
-
-  <footer>
-    Corpus: <em>The Lighthouse Contract</em> — six invented seasons written for this project.
-    Numbers and failure analysis in <code>evals/results.md</code>.
-    Agent: Gemini + Google ADK. SQL executes through the official <code>mcp-clickhouse</code> MCP server.
-  </footer>
-</div>
+<footer>
+  Corpus OPUS OpenSubtitles · <a href="http://www.opensubtitles.org/">opensubtitles.org</a> ·
+  Lison &amp; Tiedemann (2016). El inglés <em>you</em> es tú, usted y ustedes a la vez, así que
+  se devuelven todas las lecturas que el corpus atestigua, no una.
+</footer>
 
 <script>
-const $ = id => document.getElementById(id);
-const out = $('out');
-let mode = 'agent';
+const f = document.getElementById('f'), q = document.getElementById('q'),
+      go = document.getElementById('go'), out = document.getElementById('out');
 
-const EXAMPLES = {
-  agent: [
-    "How many times does Vale break a promise across the six seasons?",
-    "Which season has the most moments of Vale going back on his word?",
-    "What does Okonkwo say about Vale's drinking?",
-    "How many lines does Bosun have in each season?"
-  ],
-  aggregate: [
-    "You gave me your word and then you did not do it",
-    "someone refuses to lie or cover for him",
-    "a promise that was actually kept"
-  ],
-  search: [
-    "breaking a promise",
-    "someone threatens to quit",
-    "an agreed dive depth is exceeded"
-  ]
-};
+document.querySelectorAll('.ex').forEach(b =>
+  b.addEventListener('click', () => { q.value = b.textContent; f.requestSubmit(); }));
 
-const esc = s => String(s).replace(/[&<>"']/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = s => String(s).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function setMode(m){
-  mode = m;
-  document.querySelectorAll('.tab').forEach(t =>
-    t.setAttribute('aria-selected', String(t.dataset.mode === m)));
-  $('go').textContent = m === 'agent' ? 'Ask' : m === 'aggregate' ? 'Count' : 'Search';
-  $('opts').style.display = m === 'agent' ? 'none' : 'flex';
-  $('maxd').parentElement.style.display = m === 'aggregate' ? 'flex' : 'none';
-  $('k').value = m === 'aggregate' ? 60 : 10;
-  $('q').placeholder = m === 'agent'
-    ? 'Ask about the corpus…'
-    : m === 'aggregate' ? 'Describe the moments to count…' : 'Describe what to find…';
-  renderExamples();
-  out.innerHTML = '';
-}
-
-function renderExamples(){
-  $('examples').innerHTML = 'Try: <ul>' + EXAMPLES[mode]
-    .map(e => `<li><button type="button" data-ex="${esc(e)}">${esc(e)}</button></li>`).join('') + '</ul>';
-}
-
-document.querySelectorAll('.tab').forEach(t =>
-  t.addEventListener('click', () => setMode(t.dataset.mode)));
-
-$('examples').addEventListener('click', e => {
-  const b = e.target.closest('button[data-ex]');
-  if (!b) return;
-  $('q').value = b.dataset.ex;
-  $('form').requestSubmit();
-});
-
-function card(title, body, cls){
-  return `<div class="card ${cls||''}"><h2>${esc(title)}</h2>${body}</div>`;
-}
-
-function lineQuote(h){
-  return `<div class="quote">
-    <div>${esc(h.text)}</div>
-    <div class="meta">S${String(h.season).padStart(2,'0')}E${String(h.episode).padStart(2,'0')}
-      · ${esc(h.character)} · ${esc(h.timecode)} · line ${h.line_id}
-      ${h.distance !== undefined ? '· d=' + h.distance : ''}</div>
-  </div>`;
-}
-
-function payload(){
-  const strategy = $('strategy').value;
-  const p = {
-    question: $('q').value,
-    k: Number($('k').value),
-    strategy,
-    window_size: strategy === 'window' ? 3 : 1,
-    involving: $('involving').value.trim() || null,
-    season: $('season').value === '' ? null : Number($('season').value)
-  };
-  if (mode === 'aggregate') { p.max_distance = Number($('maxd').value); p.group_by = 'season'; }
-  return p;
-}
-
-async function post(path, body){
-  const r = await fetch(path, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
-  });
-  const data = await r.json().catch(() => ({detail:'unreadable response'}));
-  if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
-  return data;
-}
-
-function renderSearch(d){
-  if (!d.count) return card('Retrieved', '<p class="muted">Nothing came back. On this corpus that is often the correct answer — see the abstention section of the writeup.</p>');
-  return card(`Retrieved · ${d.count} lines`, d.hits.map(lineQuote).join(''));
-}
-
-function renderAggregate(d){
-  if (!d.rows.length){
-    return card('Result', '<p class="muted">No group had a semantic match within the distance ceiling. Try raising <em>max distance</em>, widening <em>k</em>, or switching chunks to <em>window·3</em>.</p>')
-         + card('The SQL that produced it', `<pre>${esc(d.sql)}</pre>`);
+function render(data) {
+  if (data.error) { out.innerHTML = `<p class="status">${esc(data.error)}</p>`; return; }
+  if (!data.readings.length) {
+    out.innerHTML = '<p class="status">El corpus no tiene nada para esta línea.</p>'; return;
   }
-  const max = Math.max(...d.rows.map(r => r.matches));
-  const key = Object.keys(d.rows[0]).find(k => !['matches','best_distance','line_ids','examples'].includes(k));
-  const rows = d.rows.map(r => `<tr>
-      <td class="num">${esc(r[key])}</td>
-      <td><span class="bar" style="width:${Math.round(r.matches / max * 110)}px"></span>${r.matches}</td>
-      <td class="num">${r.best_distance.toFixed(3)}</td>
-      <td>${esc((r.examples[0] || '').slice(0,90))}</td>
-    </tr>`).join('');
-  return card(`Total · ${d.total_matches} matching lines`,
-      `<table><thead><tr><th>${esc(key)}</th><th>matches</th><th>best distance</th><th>example</th></tr></thead>
-       <tbody>${rows}</tbody></table>
-       <p class="muted" style="margin:12px 0 0;font-size:12.5px">
-       A count of dialogue lines that are semantically close to the query, not a fact about a
-       character's conduct. The distance ceiling is the judgement call — see the writeup.</p>`)
-    + card('The SQL that produced it', `<pre>${esc(d.sql)}</pre>`);
+  out.innerHTML = data.readings.map(r => {
+    const tag = r.form === 'unmarked' ? '' : `<span class="form-tag">${esc(r.form)}</span>`;
+    const cites = r.pair_ids.length
+      ? r.pair_ids.map(p => `pair_id ${p}`).join(' · ')
+      : 'sin cita';
+    const flags = [];
+    if (!r.grounded) flags.push(['bad', 'sin precedente en el corpus']);
+    else if (r.weak) flags.push(['warn', `anclaje débil · ${r.similarity}`]);
+    if (!r.well_formed) flags.push(['bad', 'gramática']);
+    if (r.not_mexican.length) flags.push(['bad', 'registro: ' + r.not_mexican.join(', ')]);
+    return `<article class="reading">
+      <p style="margin:0">${tag}<span class="es">${esc(r.spanish)}</span></p>
+      <p class="cites">${esc(cites)}</p>
+      ${flags.map(([k, t]) => `<span class="flag ${k}">${esc(t)}</span>`).join('')}
+    </article>`;
+  }).join('');
 }
 
-function renderAgent(d){
-  let html = card('Answer', `<div>${esc(d.answer).replace(/\n/g,'<br>')}</div>`);
-
-  const badge = d.verified === true ? '<span class="badge ok">verified</span>'
-              : d.verified === false ? '<span class="badge no">verification failed</span>'
-              : '<span class="badge un">not self-checked</span>';
-  html += card('Self-check',
-    `${badge} <span class="muted" style="margin-left:8px">
-     ${d.retrieved_line_ids.length} lines retrieved this run; every cited line is checked against them
-     before the answer is shown.</span>`);
-
-  if (d.tool_calls.length){
-    html += card('How it got there', '<table><thead><tr><th>#</th><th>tool</th><th>arguments</th></tr></thead><tbody>'
-      + d.tool_calls.map((c,i) => `<tr><td class="num">${i+1}</td><td class="num">${esc(c.name)}</td>
-          <td><pre style="margin:0;background:none;border:0;padding:0">${esc(JSON.stringify(c.args))}</pre></td></tr>`).join('')
-      + '</tbody></table>');
-  }
-  return html;
-}
-
-$('form').addEventListener('submit', async e => {
+f.addEventListener('submit', async e => {
   e.preventDefault();
-  const q = $('q').value.trim();
-  if (!q) return;
-  $('go').disabled = true;
-  out.innerHTML = card('Working', '<span class="spin"></span> <span class="muted">'
-    + (mode === 'agent' ? 'the agent is planning, retrieving and checking itself…' : 'querying ClickHouse…')
-    + '</span>');
+  const line = q.value.trim();
+  if (!line) return;
+  go.disabled = true;
+  out.innerHTML = '<p class="status">Buscando en el corpus…</p>';
   try {
-    if (mode === 'agent') out.innerHTML = renderAgent(await post('/api/ask', {question:q}));
-    else if (mode === 'aggregate') out.innerHTML = renderAggregate(await post('/api/aggregate', payload()));
-    else out.innerHTML = renderSearch(await post('/api/search', payload()));
+    const res = await fetch('/api/localise', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({line})
+    });
+    if (!res.ok) throw new Error(`el servidor respondió ${res.status}`);
+    render(await res.json());
   } catch (err) {
-    out.innerHTML = card('Could not answer', `<p>${esc(err.message)}</p>`, 'err');
-  } finally {
-    $('go').disabled = false;
-  }
+    out.innerHTML = `<p class="status">No se pudo consultar: ${esc(err.message)}.
+      Revisa que ClickHouse esté arriba y que GOOGLE_API_KEY esté puesta.</p>`;
+  } finally { go.disabled = false; }
 });
-
-(async () => {
-  try {
-    const s = await (await fetch('/api/status')).json();
-    const c = s.corpus || {};
-    $('status').innerHTML =
-      `<span class="dot ${s.clickhouse_connected?'on':'off'}"></span>ClickHouse`
-      + (s.clickhouse_connected ? ` · ${c.lines} lines · ${c.seasons} seasons · ${c.characters} characters` : ' unreachable')
-      + ` &nbsp;|&nbsp; <span class="dot ${s.mcp_available?'on':'off'}"></span>mcp-clickhouse`
-      + ` &nbsp;|&nbsp; <span class="dot ${s.agent_available?'on':'off'}"></span>${esc(s.gemini_model)}`
-      + (s.agent_available ? '' : ' (no key — retrieval tabs still work)');
-    if (!s.agent_available) setMode('aggregate');
-    else renderExamples();
-  } catch {
-    $('status').innerHTML = '<span class="dot off"></span> backend unreachable';
-  }
-})();
-
-setMode('agent');
 </script>
 </body>
 </html>

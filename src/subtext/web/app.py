@@ -99,101 +99,84 @@ async def status() -> dict[str, Any]:
     }
 
 
-@app.post("/api/search")
-async def api_search(request: SearchRequest) -> dict[str, Any]:
-    from ..retrieval import search
+class LocaliseRequest(BaseModel):
+    line: str = Field(min_length=1, max_length=300)
 
-    hits = await asyncio.to_thread(
-        search,
-        request.question,
-        k=request.k,
-        strategy=request.strategy,
-        window_size=request.window_size if request.strategy == "window" else 1,
-        character=request.character or None,
-        involving=request.involving or None,
-        season=request.season,
+
+def _asker(model: str | None = None):
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client()
+    name = model or settings().gemini_model
+    config = types.GenerateContentConfig(
+        temperature=0.2, max_output_tokens=2048,
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
     )
+
+    def ask(prompt: str) -> str:
+        return client.models.generate_content(
+            model=name, contents=prompt, config=config).text or ""
+
+    return ask
+
+
+def _localise(line: str) -> dict[str, Any]:
+    from ..address_llm import cached_tagger
+    from ..variants import translate_variants
+
+    model = settings().gemini_model
+    ask = _asker(model)
+    variants = translate_variants(line, ask=ask, tag_forms=cached_tagger(ask, model=model))
     return {
-        "count": len(hits),
-        "hits": [
+        "line": line,
+        "readings": [
             {
-                "line_id": h.line_id,
-                "season": h.season,
-                "episode": h.episode,
-                "character": h.character,
-                "timecode": h.timecode,
-                "text": h.text,
-                "distance": round(h.distance, 4),
-                "similarity": round(h.similarity, 4),
+                "form": v.form.value,
+                "spanish": v.spanish,
+                "pair_ids": list(v.pair_ids[:4]),
+                "register": v.register,
+                "grounded": v.grounded,
+                "weak": v.weakly_grounded,
+                "similarity": round(v.top_similarity, 2),
+                "well_formed": v.well_formed,
+                "not_mexican": v.not_mexican,
             }
-            for h in hits
+            for v in variants
         ],
     }
 
 
-@app.post("/api/aggregate")
-async def api_aggregate(request: AggregateRequest) -> dict[str, Any]:
-    from ..retrieval import hybrid_aggregate
-
-    columns = tuple(c.strip() for c in request.group_by.split(",") if c.strip())
-    try:
-        rows, sql = await asyncio.to_thread(
-            hybrid_aggregate,
-            request.question,
-            group_by=columns or ("season",),
-            k=request.k,
-            strategy=request.strategy,
-            window_size=request.window_size if request.strategy == "window" else 1,
-            character=request.character or None,
-            involving=request.involving or None,
-            season=request.season,
-            max_distance=request.max_distance,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    return {
-        "rows": [
-            {
-                **{c: r[c] for c in (columns or ("season",))},
-                "matches": int(r["matches"]),
-                "best_distance": float(r["best_distance"]),
-                "line_ids": [int(i) for i in r["line_ids"]],
-                "examples": list(r["examples"]),
-            }
-            for r in rows
-        ],
-        "total_matches": sum(int(r["matches"]) for r in rows),
-        "sql": sql,
-    }
-
-
-@app.post("/api/ask")
-async def api_ask(request: AskRequest) -> dict[str, Any]:
+@app.post("/api/localise")
+async def api_localise(request: LocaliseRequest) -> dict[str, Any]:
+    """One English subtitle line in, every Mexican reading the corpus attests out."""
     if not settings().has_gemini_key:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "The agent needs a GOOGLE_API_KEY in .env (free tier at "
-                "https://aistudio.google.com/apikey). The retrieval tab works without one."
-            ),
-        )
+        return {"line": request.line, "readings": [],
+                "error": "GOOGLE_API_KEY is not set, so no translation can be written."}
+    return await asyncio.to_thread(_localise, request.line)
 
-    from ..agent import ask_async
 
-    async with _agent_lock:
-        try:
-            answer = await ask_async(request.question)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"{type(exc).__name__}: {exc}") from exc
+@app.post("/api/evidence")
+async def api_evidence(request: LocaliseRequest) -> dict[str, Any]:
+    """What the corpus holds for this line, with no model call and no translation."""
+    from ..localise import gather_phrases
 
-    return {
-        "answer": answer.text,
-        "tool_calls": answer.tool_calls,
-        "tools_used": answer.tools_used,
-        "retrieved_line_ids": answer.retrieved_line_ids,
-        "verified": answer.verified,
-    }
+    def work():
+        return [
+            {
+                "phrase": h.phrase,
+                "lines": h.support,
+                "renderings": [
+                    {"spanish": r.spanish, "count": r.count,
+                     "pair_id": r.pair_id, "english": r.english,
+                     "coverage": r.coverage}
+                    for r in h.renderings
+                ],
+            }
+            for h in gather_phrases(request.line)
+        ]
+
+    return {"line": request.line, "phrases": await asyncio.to_thread(work)}
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:
