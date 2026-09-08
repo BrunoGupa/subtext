@@ -10,6 +10,7 @@ from subtext.address import Address
 from subtext.variants import (
     ADDRESSED_SHARE,
     REFUSAL,
+    Variant,
     VariantEvidence,
     _first_line,
     _looks_untranslated,
@@ -131,3 +132,55 @@ def test_the_addressed_share_is_a_proportion_not_a_word_list():
 ])
 def test_only_the_first_line_of_an_answer_is_taken(reply, expected):
     assert _first_line(reply) == expected
+
+
+# --- Agreed renderings reaching the reading that uses them -------------------------
+
+def test_the_agreed_rendering_reaches_the_translation_prompt():
+    """`--evidence-only` printed it while this prompt did not, so `up his ass` arrived at
+    the model as three phrase headings with no Spanish under any of them, and the `culo`
+    that came back was the model guessing, not the corpus."""
+    from subtext.localise import Consensus, PhraseHit
+
+    text = format_variant_prompt(
+        "He wore this watch up his ass",
+        VariantEvidence(form=Address.UNMARKED),
+        phrases=(PhraseHit("up his ass", 3, 6, (), (Consensus("por el culo", 3, 6, 5790.0),)),))
+    assert "AGREED RENDERING: por el culo" in text
+
+
+def test_an_exact_line_precedent_outranks_an_agreed_phrase():
+    """`what the fuck` agrees on `qué chingados`, and the corpus also renders the whole
+    line as `¿Qué pedo?` 18 times. Told the agreed rendering wins outright, the model
+    dropped the better evidence for the weaker one."""
+    from subtext.variants import VARIANT_INSTRUCTION
+
+    flat = " ".join(VARIANT_INSTRUCTION.split())
+    assert "ranks BELOW a precedent that renders your line itself" in flat
+    assert "never insert a subject pronoun" in flat
+
+
+def test_no_test_case_answer_is_written_into_the_static_prompt():
+    """An instruction sent on every call naming `up his ass` -> `por el culo` hands the
+    model the answer to the case the channel is being judged on, and the retrieval can
+    then be broken without the output changing. The rule stays; the example goes."""
+    from subtext.localise import INSTRUCTION
+    from subtext.variants import VARIANT_INSTRUCTION
+
+    for prompt in (INSTRUCTION, VARIANT_INSTRUCTION):
+        low = prompt.lower()
+        for leak in ("up his ass", "culo", "trasero", "felaci", "pedo", "chingados"):
+            assert leak not in low, f"{leak!r} is baked into a static prompt"
+
+
+def test_agreement_is_grounding_even_with_no_close_neighbour():
+    """Six lines agreeing on `por el culo` is stronger evidence than a 0.56 neighbour, and
+    the flag read only the neighbour -- so the grounded line and `Helps fellatio.`, which
+    has nothing behind it at all, carried the same warning."""
+    backed = Variant(form=Address.UNMARKED, spanish="Llevaba este reloj por el culo",
+                     top_similarity=0.56, agreed=("por el culo",))
+    assert backed.grounded and not backed.weakly_grounded
+
+    unbacked = Variant(form=Address.UNMARKED, spanish="Ayuda a la felación.",
+                       top_similarity=0.55)
+    assert unbacked.weakly_grounded

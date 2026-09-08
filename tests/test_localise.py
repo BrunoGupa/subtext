@@ -8,6 +8,7 @@ pinned by tests rather than inspected by eye in a demo.
 import pytest
 
 from subtext.localise import (
+    Consensus,
     Rendering,
     INSTRUCTION,
     MIN_PHRASE_SUPPORT,
@@ -17,6 +18,7 @@ from subtext.localise import (
     PhraseHit,
     candidate_phrases,
     check_register,
+    rank_consensus,
     format_evidence,
 )
 
@@ -218,3 +220,49 @@ def test_words_that_are_ordinary_in_mexico_are_not_rejected(spanish):
     is not also Mexican. `concha` alone is bread here, so only the phrase `concha de` is
     listed; `plata`, `flaco` and `man` are excluded outright."""
     assert check_register(spanish).ok
+
+
+# --- Agreed renderings ------------------------------------------------------------
+#
+# The channel that exists because `MIN_COVERAGE` cannot cover short idioms: `up his ass`
+# is 10 characters and its seven corpus lines run 42 to 124, so every one of them fails
+# coverage while six of them say `culo`. The numbers below are the measured ones.
+
+def test_enrichment_decides_and_not_how_many_lines_agree():
+    """`el` is in 5 of the 7 `up his ass` lines and `por el culo` in only 3. Ranked by
+    share the function word wins and the finding is lost; ranked against what the corpus
+    does anyway, `el` is ordinary and `por el culo` is not."""
+    got = rank_consensus([("el", 5, 120_000), ("por el culo", 3, 26)],
+                         total_lines=7, corpus_lines=337_225, keep=2)
+    assert [c.spanish for c in got] == ["por el culo"]
+
+
+def test_a_phrase_whose_lines_disagree_claims_nothing():
+    """`his ass` spans 102 lines that mostly mean `kick his ass`. The readings scatter and
+    the best candidate is `este` at 18x. Silence is the right answer: an asserted
+    consensus that is not one is worse evidence than none."""
+    assert rank_consensus([("este", 29, 5_700), ("su", 29, 19_000)],
+                          total_lines=102, corpus_lines=337_225) == ()
+
+
+def test_nested_agreements_are_one_finding_not_three():
+    got = rank_consensus([("por el culo", 3, 26), ("el culo", 5, 98), ("culo", 6, 507)],
+                         total_lines=7, corpus_lines=337_225, keep=2)
+    assert [c.spanish for c in got] == ["por el culo"]
+
+
+def test_an_agreed_rendering_reaches_the_prompt_with_its_evidence():
+    ev = Evidence(cue="He wore this watch up his ass", phrases=(
+        PhraseHit("up his ass", 3, 6, (), (Consensus("por el culo", 3, 6, 5790.0),)),))
+    text = format_evidence(ev)
+    assert "AGREED RENDERING: por el culo" in text
+    assert "3 of 6 lines" in text and "5790x" in text
+
+
+def test_the_instruction_ranks_agreement_above_the_weaker_channels():
+    assert "AGREED RENDERINGS" in INSTRUCTION
+    assert INSTRUCTION.index("AGREED RENDERINGS") < INSTRUCTION.index("ATTESTED PHRASES")
+
+
+def test_consensus_share_is_reported_honestly():
+    assert Consensus("por el culo", 3, 6, 5790.0).share == 0.5

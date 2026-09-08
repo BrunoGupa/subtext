@@ -22,7 +22,7 @@ one call invites blending — the `usted` line coming back with `tú` precedent'
 and it makes the citations unverifiable, because nothing then ties an output line to the
 evidence that produced it.
 
-Readings with no attested precedent are not offered. If nothing in 718,925 lines addresses
+Readings with no attested precedent are not offered. If nothing in the corpus addresses
 this cue as `ustedes`, that variant does not exist and is not manufactured.
 """
 
@@ -131,11 +131,20 @@ class Variant:
     #: The closest precedent behind this reading. Below `WEAK_SIMILARITY` the evidence is
     #: too far away to have grounded anything, whatever `grounded` says.
     top_similarity: float = 0.0
+    #: An agreed rendering stood behind this line. Recorded because `top_similarity` reads
+    #: the neighbour channel alone and therefore cannot see the stronger evidence: `up his
+    #: ass` has six corpus lines agreeing on `por el culo` and a nearest neighbour of 0.56,
+    #: so without this it is flagged exactly like `Helps fellatio.`, which has nothing at
+    #: all. A warning that fires on the grounded case and the unfounded one alike tells a
+    #: reviewer nothing.
+    agreed: tuple[str, ...] = ()
 
     @property
     def weakly_grounded(self) -> bool:
         """Precedent came back, but none of it close. Worse than none, because it reads
         as support while the model was in fact writing unaided."""
+        if self.agreed:
+            return False
         return self.grounded and self.top_similarity < WEAK_SIMILARITY
 
 
@@ -250,7 +259,7 @@ others.
 
 THIS RENDERING ADDRESSES: {who}
 
-Below are lines from a corpus of 718,925 lines written by Mexican subtitlers, all of which
+Below are lines from a corpus of 335,800 lines written by Mexican subtitlers, all of which
 address their listener the same way. They show both the wording and the grammar to use.
 
 If this form of address is WRONG for this line, output exactly NONE and nothing else.
@@ -265,6 +274,13 @@ Rules:
 - {grammar}
 - Take wording from the evidence. Do not add slang it does not show — reaching for `güey`
   or `órale` with nothing behind it is the failure this system exists to prevent.
+- An AGREED RENDERING is measured across every corpus line carrying that phrase, so it is
+  the phrase's own Spanish. Use its wording, and do not soften it: where the corpus agrees
+  on a coarse word, a politer synonym is a word the corpus does not support. But it ranks
+  BELOW a precedent that renders your line itself: where the evidence shows your exact line
+  already translated, that translation wins and the agreed rendering is only a check on it.
+  And it is a claim about WORDING, never about grammar — it carries no pronoun and no form
+  of address, so never insert a subject pronoun to accommodate it.
 - Never use `vosotros`/`vuestro` or their verb forms.
 - Preserve names, numbers and proper nouns exactly.
 """
@@ -296,6 +312,15 @@ def format_variant_prompt(cue: str, evidence: VariantEvidence, *,
         lines.append("ATTESTED PHRASES (exact wording, from the corpus):")
         for hit in phrases:
             lines.append(f'  "{hit.phrase}" — in {hit.support} lines')
+            # The agreed rendering is the only evidence here that is about the PHRASE
+            # rather than about a line that happened to contain it, so it leads. Leaving
+            # it out of this prompt while `--evidence-only` printed it is what let
+            # `up his ass` reach the model with three phrase headings and no Spanish
+            # under any of them.
+            for c in hit.consensus:
+                lines.append(f"      AGREED RENDERING: {c.spanish}   "
+                             f"({c.lines} of {c.of_lines} lines carrying this phrase, "
+                             f"{c.enrichment:.0f}x the corpus rate) — use this wording")
             for r in hit.renderings:
                 lines.append(f"      {r.count:>3}x  {r.spanish}")
                 lines.append(f"           from: {r.english}   (pair_id {r.pair_id})")
@@ -333,7 +358,7 @@ def check_output(line: str, *, ask) -> tuple[Address, bool, str]:
     so `Adelante, alégranme el día.` passed it clean: every word looked Mexican and the
     conjugation was invented. Nothing else in the pipeline reads morphology any more, and
     the corpus cannot fill in either -- `alégrame`, `cuídese` and `cállense` occur **zero**
-    times in 718,925 lines and are all perfectly good Spanish, so "not attested" is not
+    times in the corpus and are all perfectly good Spanish, so "not attested" is not
     evidence of "not a word".
     """
     reply = ask(CHECK_INSTRUCTION.replace("{line}", line)) or ""
@@ -371,6 +396,9 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
     """
     out: list[Variant] = []
     phrases = gather_phrases(cue)
+    # Form-neutral, like the phrase channel it comes from: what `up his ass` agrees on is
+    # the same whether the scene is tu or usted.
+    agreed = tuple(c.spanish for hit in phrases for c in hit.consensus)
     if tag_forms is None:
         from .address_llm import cached_tagger
         from .config import settings
@@ -436,7 +464,8 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
             top_similarity=max((p.similarity for p in
                                 tuple(evidence.precedents) + tuple(evidence.shared)),
                                default=0.0),
-            grounded=bool(evidence.precedents or evidence.shared),
+            grounded=bool(evidence.precedents or evidence.shared or agreed),
+            agreed=agreed,
         ))
     return out
 

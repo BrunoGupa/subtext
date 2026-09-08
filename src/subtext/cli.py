@@ -325,6 +325,9 @@ def cmd_localise(args: argparse.Namespace) -> int:
         print(f"EN  {args.cue}\n")
         for hit in gather_phrases(args.cue):
             print(f'  attested phrase "{hit.phrase}" — in {hit.support} lines')
+            for c in hit.consensus:
+                print(f"      agreed: {c.spanish}   "
+                      f"({c.lines}/{c.of_lines} lines, {c.enrichment:.0f}x corpus rate)")
             for r in hit.renderings:
                 print(f"      {r.count:>3}x  {r.spanish}   (pair_id {r.pair_id})")
         from .config import settings
@@ -348,6 +351,15 @@ def cmd_localise(args: argparse.Namespace) -> int:
         flags = []
         if not v.grounded:
             flags.append("UNGROUNDED -- no precedent came close; this is a guess")
+        # `weakly_grounded` was computed on every Variant and read only by the web UI, so
+        # the terminal showed `Ayuda a la felacion.` citing `It helps.` with no mark on it
+        # at all -- a guess and a citation rendered identically. Same class of bug as the
+        # coverage bound that was calculated and never applied.
+        elif v.weakly_grounded:
+            flags.append(f"WEAK -- closest precedent is only {v.top_similarity:.2f}; "
+                         f"the citation supports less than it appears to")
+        if v.agreed:
+            flags.append("agreed rendering: " + ", ".join(v.agreed))
         if not v.well_formed:
             flags.append("GRAMMAR -- failed the check after one retry")
         if not v.form_confirmed:

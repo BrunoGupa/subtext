@@ -128,3 +128,17 @@ SELECT ng, {n} AS n, count() AS support, min(pair_id) AS ex_pair_id FROM (
 
 if __name__ == "__main__":
     print(phrase_index_sql(), end="")
+
+
+#: A Spanish word. Deliberately *not* `WORD_PATTERN`: that one is the key `phrase_index`
+#: is built on and is ASCII by construction, so it cuts `cállate` into `c` + `llate` and
+#: `chingados` survives only by luck. The Spanish side is never an index key -- it is read,
+#: not looked up -- so it gets its own rule rather than bending the one the index depends on.
+ES_WORD_PATTERN = r"[a-záéíóúüñ]+(?:'[a-záéíóúüñ]+)?"
+
+_ES_WORD_RE = re.compile(ES_WORD_PATTERN)
+
+
+def es_tokens(text: str) -> list[str]:
+    """Cut a Spanish line into words, keeping the accents and the eñe."""
+    return _ES_WORD_RE.findall(normalize(text))

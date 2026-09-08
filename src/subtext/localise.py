@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 from .ingest.mexican import MEXICAN, PENINSULAR
-from .tokenizer import MAX_N, clickhouse_haystack_sql, ngrams, tokens
+from .tokenizer import MAX_N, clickhouse_haystack_sql, es_tokens, ngrams, tokens
 
 #: A neighbour below this cosine similarity is noise dressed as evidence.
 MIN_SIMILARITY = 0.55
@@ -51,6 +51,38 @@ MIN_COVERAGE = 0.6
 #: Same bound `find_precedent` uses: a Spanish line this far out of proportion to its
 #: English is a misalignment, not a translation.
 MAX_LENGTH_RATIO = 2.2
+
+#: `MIN_COVERAGE` above is a bound on *whole-line* evidence, and it is right there: if the
+#: phrase is a quarter of the line, the line's Spanish is not the phrase's Spanish. But
+#: applied as the only rule it also silences every short idiom, because a short idiom only
+#: ever occurs inside long lines. `up his ass` is 10 characters; the seven corpus lines
+#: containing it run 42 to 124, so all seven fail coverage and the channel goes quiet --
+#: while six of those seven say `culo`. The constants below drive the second channel that
+#: reads that agreement, without touching the first one.
+#:
+#: How many of a phrase's lines must contain a candidate Spanish n-gram before it counts
+#: as agreement rather than coincidence.
+MIN_CONSENSUS_SHARE = 0.25
+
+#: ...and by how much that must beat the n-gram's corpus-wide rate. This is the bound that
+#: does the real work, and frequency could not do it: `el` appears in 5 of the 7 `up his
+#: ass` lines and `por el culo` in only 3, so by share alone the function word wins. By
+#: enrichment `el` scores 4x and `por el culo` 4962x. Ranking by enrichment rather than by
+#: count is the same choice made for the register lexicon, for the same reason.
+MIN_CONSENSUS_ENRICHMENT = 50.0
+
+#: A phrase attested in fewer lines than this cannot show agreement, only coincidence.
+#: Measured, not guessed: at three lines the channel produced `desde` as the rendering of
+#: `been screwing` -- 3 of 3 lines, 290x, and meaningless. Six lines is what `up his ass`
+#: has, so this is set below that and no lower.
+MIN_CONSENSUS_LINES = 5
+
+#: Lines read per phrase to measure that agreement. A sample, ordered by `pair_id` so the
+#: evidence stays deterministic, as the module promises.
+CONSENSUS_SAMPLE = 400
+
+#: Candidate n-grams carried to the (single, batched) baseline query per phrase.
+CONSENSUS_CANDIDATES = 20
 
 
 @dataclass(frozen=True)
@@ -77,11 +109,43 @@ class Rendering:
 
 
 @dataclass(frozen=True)
+class Consensus:
+    """The Spanish a phrase's lines AGREE on -- a claim about the phrase, not the line.
+
+    `Rendering` can only ever say "a line containing this phrase was translated so". This
+    says "the lines containing this phrase all put this in their Spanish", which is a
+    different and stronger statement, and it is reached without a word aligner: unrelated
+    lines share function words and nothing else, so whatever survives across them at a rate
+    the corpus at large cannot explain is the phrase's own rendering.
+
+    It abstains where it should. `his ass` spans 102 lines that mostly mean `kick his ass`,
+    the readings disagree, and the best candidate is `este` at 18x -- under the bound, so
+    nothing is claimed. Silence there is the feature; a wrong rendering asserted as
+    agreement is worse than none.
+    """
+
+    spanish: str
+    #: Lines containing this Spanish, out of `of_lines` read for the phrase.
+    lines: int
+    of_lines: int
+    #: How many times more often this appears in the phrase's lines than corpus-wide.
+    enrichment: float
+
+    @property
+    def share(self) -> float:
+        return self.lines / self.of_lines if self.of_lines else 0.0
+
+
+@dataclass(frozen=True)
 class PhraseHit:
     phrase: str
     words: int
     support: int
     renderings: tuple[Rendering, ...] = ()
+    #: What this phrase's lines agree on. Independent of `renderings`:
+    #: a phrase can have consensus and no whole-line evidence, which is
+    #: exactly the case the coverage bound leaves uncovered.
+    consensus: tuple[Consensus, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -116,7 +180,7 @@ class Evidence:
 #:    choice, and Mexico does not have it. The 59 lines carrying it in `mx_corpus` are
 #:    demonstrably the documented contamination, not usage -- they come with Spain verb
 #:    forms attached ("llegáis tarde", "¿qué esperáis?", "me hacéis falta").
-#: 2. Vocabulary attested at most twice in 718,925 lines of Mexican Spanish. At that rate
+#: 2. Vocabulary attested at most twice in the Mexican corpus. At that rate
 #:    the occurrences are more likely to BE the 0.46% peninsular leak than evidence of
 #:    Mexican usage, so rejecting them is safe in both directions.
 #:
@@ -125,7 +189,7 @@ class Evidence:
 NOT_MEXICAN: tuple[str, ...] = (
     # Spain's 2nd person plural -- grammar, not vocabulary
     "vosotros", "vuestro", "vuestra", "vuestros", "vuestras",
-    # 0 occurrences in 718,925 lines
+    # 0 occurrences in the Mexican corpus
     "chorrada", "currar", "curro", "flipante", "flipar", "flipas", "mogollon",
     # 1-2 occurrences
     "cabreado", "cabrear", "cutre", "fontanero", "gilipolleces", "majo", "maja",
@@ -267,6 +331,91 @@ def candidate_phrases(cue: str, max_n: int = MAX_N) -> list[str]:
     return out
 
 
+def phrase_consensus(ch, phrase: str, *, keep: int = 2) -> tuple[Consensus, ...]:
+    """What the lines containing `phrase` agree their Spanish contains.
+
+    Two queries, whatever the phrase: one for the lines, one that measures every candidate
+    against the whole corpus at once. The second is the expensive half and batching it is
+    the difference between a lookup and a scan per candidate.
+    """
+    from collections import Counter
+
+    rows = ch.query(
+        "SELECT es FROM mx_corpus WHERE {hay} LIKE {{pat:String}} "
+        "ORDER BY pair_id LIMIT {{k:UInt32}}".format(hay=clickhouse_haystack_sql("en")),
+        parameters={"pat": f"% {phrase} %", "k": CONSENSUS_SAMPLE},
+    ).result_rows
+    total_lines = len(rows)
+    if total_lines < MIN_PHRASE_SUPPORT:
+        return ()
+
+    # Document frequency, not raw count: a word repeated inside one line is one line's
+    # worth of evidence, not two.
+    seen_in = Counter()
+    for (es,) in rows:
+        words = es_tokens(es)
+        here = set()
+        for n in range(1, MAX_N + 1):
+            here.update(ngrams(words, n))
+        seen_in.update(here)
+
+    floor = max(MIN_PHRASE_SUPPORT, total_lines * MIN_CONSENSUS_SHARE)
+    candidates = [ng for ng, d in seen_in.most_common() if d >= floor][:CONSENSUS_CANDIDATES]
+    if not candidates:
+        return ()
+
+    # One pass over the corpus answering every candidate, instead of one pass each.
+    counts = ", ".join(f"countIf(es ILIKE {{c{i}:String}})" for i in range(len(candidates)))
+    params = {f"c{i}": f"%{ng}%" for i, ng in enumerate(candidates)}
+    baseline = ch.query(f"SELECT count(), {counts} FROM mx_corpus",
+                        parameters=params).result_rows[0]
+    corpus_lines = int(baseline[0]) or 1
+
+    return rank_consensus(measured_consensus(candidates, seen_in, baseline),
+                          total_lines=total_lines, corpus_lines=corpus_lines, keep=keep)
+
+
+def measured_consensus(candidates, seen_in, baseline) -> list[tuple[str, int, int]]:
+    """(n-gram, lines carrying the phrase, lines corpus-wide) -- the raw counts, before
+    any bound is applied to them. Separated so a sweep can measure once and threshold many
+    times instead of re-reading the corpus per candidate bound."""
+    return [(ng, seen_in[ng], int(baseline[i + 1])) for i, ng in enumerate(candidates)]
+
+
+def rank_consensus(measured: Sequence[tuple[str, int, int]], *, total_lines: int,
+                   corpus_lines: int, keep: int = 2,
+                   min_enrichment: float = MIN_CONSENSUS_ENRICHMENT,
+                   min_lines: int = MIN_CONSENSUS_LINES) -> tuple[Consensus, ...]:
+    """Turn counted candidates into the ones worth showing. Pure, so it can be pinned.
+
+    `measured` is (spanish n-gram, lines here, lines corpus-wide). `min_enrichment` is a
+    parameter and not just the constant so the bound can be swept over the evaluation set
+    without the sweep having to reach in and reassign a module global.
+    """
+    scored: list[Consensus] = []
+    if total_lines < min_lines:
+        return ()
+    for ng, here, base in measured:
+        if not base or not total_lines:
+            continue
+        enrichment = (here / total_lines) / (base / corpus_lines)
+        if enrichment >= min_enrichment:
+            scored.append(Consensus(spanish=ng, lines=here, of_lines=total_lines,
+                                    enrichment=round(enrichment, 1)))
+
+    scored.sort(key=lambda c: -c.enrichment)
+    # `por el culo` (4962x), `el culo` (2200x) and `culo` (507x) are one finding stated
+    # three times. Keeping the nested ones would pad the prompt with its own echo.
+    out: list[Consensus] = []
+    for c in scored:
+        if any(c.spanish in kept.spanish for kept in out):
+            continue
+        out.append(c)
+        if len(out) == keep:
+            break
+    return tuple(out)
+
+
 def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
     """The attested-phrase half of the evidence, on its own.
 
@@ -335,7 +484,8 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
             scored = [x for x in scored if x.coverage >= MIN_COVERAGE]
             scored.sort(key=lambda x: (-min(x.count, 3), -x.coverage, len(x.spanish)))
             hits.append(PhraseHit(phrase=ng, words=int(n), support=int(support),
-                                  renderings=tuple(scored[:renderings])))
+                                  renderings=tuple(scored[:renderings]),
+                                  consensus=phrase_consensus(ch, ng)))
 
     return tuple(hits)
 
@@ -365,12 +515,20 @@ def gather_evidence(cue: str, *, neighbours: int = 8, renderings: int = 3) -> Ev
 INSTRUCTION = """\
 You localise English film subtitles into MEXICAN Spanish.
 
-You are given evidence retrieved from a corpus of 718,925 lines written by Mexican
+You are given evidence retrieved from a corpus of 335,800 lines written by Mexican
 subtitlers. Your job is to choose what a Mexican translator would actually have written —
 not to invent something that sounds Mexican.
 
 The evidence comes in two kinds and they are not equal:
 
+* AGREED RENDERINGS are the strongest evidence here. When many corpus lines contain the
+  same English phrase, their Spanish sides share almost nothing except that phrase's own
+  translation, so what they agree on IS the phrase's Spanish — measured, not aligned. The
+  multiplier says how much more often it appears in these lines than in the corpus at
+  large. Prefer an agreed rendering over anything below, and use the word it gives you
+  even when it is coarse — where the corpus agrees on a blunt word, a politer synonym is
+  a translation it does not support. If no agreed rendering is shown, the phrase had no
+  agreement and you get the weaker evidence only.
 * ATTESTED PHRASES are exact phrases from the corpus. Under each one are Spanish lines
   that contained it, with how often that Spanish was used and the English line it came
   from. Read the English line before you trust the Spanish: the corpus has no word-level
@@ -412,6 +570,10 @@ def format_evidence(evidence: Evidence) -> str:
         lines.append("ATTESTED PHRASES (exact, from the corpus):")
         for hit in evidence.phrases:
             lines.append(f'  "{hit.phrase}" — appears in {hit.support} lines')
+            for c in hit.consensus:
+                lines.append(f"      AGREED RENDERING: {c.spanish}   "
+                             f"({c.lines} of {c.of_lines} lines carrying this phrase, "
+                             f"{c.enrichment:.0f}x the corpus rate)")
             for r in hit.renderings:
                 lines.append(f"      {r.count:>3}x  {r.spanish}")
                 lines.append(f"           from: {r.english}   "
