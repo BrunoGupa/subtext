@@ -134,6 +134,35 @@ NOT_MEXICAN: tuple[str, ...] = (
     # Spain-only slang, and a single occurrence is not grounds for a blocklist entry.
 )
 
+#: Forms from *other* Latin American varieties. The gate had no defence against these at
+#: all -- it checked Spain and nothing else -- and on 2026-09-07 that produced
+#: `Jesus fucking Christ` -> **`La concha de Dios.`**, which is Rioplatense, and which passed
+#: every check clean: grounded, right form of address, well-formed grammar.
+#:
+#: It passed because it was *true*: the corpus really contains it. Other-Latin-American
+#: contamination is only 0.120% of `mx_corpus` (402 lines of 335,800), and that is exactly
+#: why it is dangerous rather than harmless. A rate that low is invisible to any aggregate
+#: and decisive in retrieval, because retrieval returns the *nearest* neighbour, not the
+#: average one. `Jesus fucking Christ` is a rare cue, so one contaminated line won it.
+#:
+#: The list follows the discipline the lexicon audit taught: only forms that are not also
+#: Mexican. Voseo morphology (`sos`, `tenés`, `querés`, `podés`, `vos`) is grammar rather
+#: than vocabulary, like Spain's `vosotros`, so it cannot be anything else. The vocabulary
+#: entries are the ones with no Mexican reading. Deliberately EXCLUDED for being ordinary in
+#: Mexico or ambiguous: `mina`, `plata`, `flaco`, `chorro`, `man`, `tinto`, `forro`, `che`,
+#: and bare `concha` -- which in Mexico is a pastry. Only the phrase `concha de` is listed.
+NOT_MEXICAN_LATAM: tuple[str, ...] = (
+    # voseo: grammar, not word choice
+    "vos", "sos", "tenes", "queres", "podes", "vení", "veni", "andá", "anda vos",
+    # Rioplatense
+    "boludo", "boluda", "boludos", "pelotudo", "pelotuda", "quilombo", "laburo",
+    "laburar", "pibe", "piba", "pibes", "chabon", "bondi", "concha de",
+    # Chilean
+    "cachai", "weon", "weona", "po",
+    # Colombian / Venezuelan
+    "parcero", "chimba", "berraco", "chamo", "chevere", "bacano",
+)
+
 #: Peninsular-*leaning* vocabulary that Mexicans nonetheless write. Reported, NEVER
 #: rejected. Getting this distinction wrong is the single easiest way to make this system
 #: worse than no system, so the reasoning is recorded here rather than in a commit message.
@@ -165,17 +194,24 @@ class RegisterReport:
     not_mexican: tuple[str, ...] = ()
     watch: tuple[str, ...] = ()
     mexican: tuple[str, ...] = ()
+    #: Forms from other Latin American varieties. Fails a line for the same reason Spain's
+    #: forms do: it is the wrong country, and being the wrong country is the one thing this
+    #: system exists to prevent.
+    other_latam: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
         """Only forms Mexicans genuinely do not write can fail a line."""
-        return not self.not_mexican
+        return not self.not_mexican and not self.other_latam
 
     @property
     def summary(self) -> str:
         parts = []
         if self.not_mexican:
             parts.append(f"NOT Mexican: {', '.join(self.not_mexican)}")
+        if self.other_latam:
+            parts.append(f"NOT Mexican (other Latin American): "
+                         f"{', '.join(self.other_latam)}")
         if self.mexican:
             parts.append(f"Mexican markers: {', '.join(self.mexican)}")
         if self.watch:
@@ -203,6 +239,7 @@ def check_register(spanish: str) -> RegisterReport:
     hit = lambda words: tuple(w for w in words if f" {w} " in haystack)
     return RegisterReport(
         not_mexican=hit(NOT_MEXICAN),
+        other_latam=hit(NOT_MEXICAN_LATAM),
         watch=hit(WATCH),
         mexican=hit(MEXICAN),
     )

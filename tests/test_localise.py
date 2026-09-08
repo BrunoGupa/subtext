@@ -184,3 +184,37 @@ def test_the_instruction_does_not_mandate_ustedes():
 
 def test_the_cue_always_reaches_the_prompt():
     assert "For Frodo." in format_evidence(Evidence(cue="For Frodo."))
+
+
+@pytest.mark.parametrize("spanish,marker", [
+    ("La concha de Dios.", "concha de"),
+    ("¿Vos sabés?", "vos"),
+    ("No seas boludo.", "boludo"),
+    ("Qué quilombo.", "quilombo"),
+    ("¿Cachai?", "cachai"),
+])
+def test_other_latin_american_forms_fail_a_line(spanish, marker):
+    """The gate checked Spain and nothing else, so `Jesus fucking Christ` came back as
+    `La concha de Dios.` -- Rioplatense -- having passed every check clean.
+
+    It passed because it was true: the corpus contains it. Other-Latin-American forms are
+    0.120% of `mx_corpus`, 402 lines of 335,800, and that rate is what makes them dangerous
+    rather than harmless. It is invisible to any aggregate and decisive in retrieval, which
+    returns the nearest neighbour and not the average one.
+    """
+    report = check_register(spanish)
+    assert not report.ok
+    assert marker in report.other_latam
+
+
+@pytest.mark.parametrize("spanish", [
+    "Me compré una concha en la panadería.",   # in Mexico a concha is a pastry
+    "Tráeme la plata.",
+    "Ese flaco es mi cuate.",
+    "Oye, man, ¿qué onda?",
+])
+def test_words_that_are_ordinary_in_mexico_are_not_rejected(spanish):
+    """The lexicon audit's lesson applied to a second list: a marker has to be a string that
+    is not also Mexican. `concha` alone is bread here, so only the phrase `concha de` is
+    listed; `plata`, `flaco` and `man` are excluded outright."""
+    assert check_register(spanish).ok

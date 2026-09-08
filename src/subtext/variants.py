@@ -369,13 +369,22 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         wrong_form = (evidence.form is not Address.UNMARKED
                       and form is not Address.UNMARKED
                       and form is not evidence.form)
+        # The register check has to gate the retry, not merely be recorded next to the
+        # output. v1's `RegisterGate` sent a line back on this and the variants path
+        # dropped it, so `Jesus fucking Christ` -> `La concha de Dios.` was reported as a
+        # register failure and returned anyway.
+        report = check_register(spanish)
 
         # One retry, and **Python decides whether to take it** -- from two yes/no answers,
         # never from the model judging its own work. The retry says exactly what was wrong
         # and forbids anything else changing, because a free rewrite tends to drift off the
         # evidence, which is the failure this system exists to prevent.
-        if wrong_form or not well_formed:
+        if wrong_form or not well_formed or not report.ok:
             note = []
+            if not report.ok:
+                wrong_country = list(report.not_mexican) + list(report.other_latam)
+                note.append(f"It used forms Mexican subtitlers do not write: "
+                            f"{', '.join(wrong_country)}. Rewrite it in Mexican Spanish.")
             if wrong_form:
                 note.append(f"It addressed the listener as {form.value}, but this rendering "
                             f"must address them as {evidence.form.value}.")
@@ -389,14 +398,14 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
             if candidate and candidate.upper().rstrip(".!") != REFUSAL:
                 spanish = candidate
                 form, well_formed, _ = check_output(spanish, ask=ask)
+                report = check_register(spanish)
 
-        report = check_register(spanish)
         out.append(Variant(
             form=evidence.form,
             spanish=spanish,
             pair_ids=evidence.pair_ids[:limit],
             register=report.summary,
-            not_mexican=list(report.not_mexican),
+            not_mexican=list(report.not_mexican) + list(report.other_latam),
             # A marked reading is confirmed by using the form asked for. Coming back
             # UNMARKED is not a failure: Spanish drops the subject pronoun, so plenty of
             # correct lines state nothing -- only stating the *wrong* one is.
