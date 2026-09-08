@@ -29,6 +29,7 @@ this cue as `ustedes`, that variant does not exist and is not manufactured.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Sequence
 
 import json
@@ -138,6 +139,11 @@ class Variant:
     #: all. A warning that fires on the grounded case and the unfounded one alike tells a
     #: reviewer nothing.
     agreed: tuple[str, ...] = ()
+    #: The gender this line's agreement is in, and the same line in the other one. Both are
+    #: None when the line marks nobody's gender, which is most of them -- and that absence
+    #: is the signal the page needs: no gender marked, no choice to offer.
+    gender: "Gender | None" = None
+    other_gender: str = ""
 
     @property
     def weakly_grounded(self) -> bool:
@@ -376,6 +382,91 @@ def check_output(line: str, *, ask) -> tuple[Address, bool, str]:
     return form, bool(data.get("well_formed", True)), str(data.get("fix", "")).strip()
 
 
+#: The other axis English leaves open. `you` marks no gender, so `I don't wanna kill you`
+#: is `matarlo` or `matarla` and the source cannot settle it; neither can the corpus, which
+#: is why this is a preference the reader sets rather than something retrieved. It is read
+#: the same way the person is: by declining the decided line and seeing whether anything
+#: moves. A line that marks no gender comes back NONE, and then there is no choice to offer.
+class Gender(str, Enum):
+    MASCULINE = "masculino"
+    FEMININE = "femenino"
+
+    @property
+    def other(self) -> "Gender":
+        return Gender.FEMININE if self is Gender.MASCULINE else Gender.MASCULINE
+
+
+REGENDER_INSTRUCTION = """\
+You are given one Mexican Spanish subtitle line that is already decided, and one job:
+flip the gender of the PERSON it agrees with. This is a change of AGREEMENT, not of wording.
+
+THE LINE, as written:
+{spanish}
+
+Rules:
+- Keep every word the change of gender does not force you to touch. Same verbs, same nouns,
+  same profanity, same punctuation, same order, same length.
+- Change only what agreement forces: adjective and participle endings, articles and object
+  pronouns that refer to the person, `-o`/`-a` on words that describe them.
+- Do NOT change the gender of a thing. `el coche` stays `el coche`; only the gender of a
+  PERSON — whoever is spoken to, or whoever is speaking — moves.
+- If the line marks nobody's gender, there is nothing to flip. Output NONE.
+- Otherwise output `M>` if the line AS GIVEN is masculine, or `F>` if it is feminine,
+  and then the flipped line. Nothing else — no quotes, no explanation.
+
+Examples of the shape, not of the wording:
+    Estás muy cansado.  ->  M> Estás muy cansada.
+    No la quiero matar. ->  F> No lo quiero matar.
+    Súbete al coche.    ->  NONE
+
+ANSWER:
+"""
+
+
+DECLINE_INSTRUCTION = """\
+You are given one Mexican Spanish subtitle line that is already decided, and one job:
+put it into a different form of address. This is a change of GRAMMAR, not of wording.
+
+THE LINE, as written:
+{spanish}
+
+IT MUST NOW ADDRESS: {who}
+{grammar}
+
+Rules:
+- Keep every word that the change of address does not force you to touch. Same verbs, same
+  nouns, same profanity, same punctuation, same order, same length. If a word can stay, it
+  stays.
+- Change only what the form forces: pronouns, clitics, possessives, and the verb endings
+  that carry the person.
+- If the line addresses nobody — an exclamation, a statement about the speaker — there is
+  nothing to decline. Output NONE.
+- Never use `vosotros`/`vuestro` or their verb forms.
+- Output ONLY the Spanish line, or NONE. No quotes, no explanation.
+
+MEXICAN SPANISH:
+"""
+
+
+def _regender(spanish: str, *, ask) -> tuple["Gender | None", str]:
+    """The gender this line agrees with, and the same line in the other one.
+
+    One call, because the two facts arrive together: asked separately, a line already in
+    the feminine and a line with no gender at all both answer "unchanged" to "make it
+    feminine", and telling them apart cost a second question on every genderless line --
+    which is most of them. The `M>` / `F>` prefix carries the direction instead.
+    """
+    reply = _first_line(ask(REGENDER_INSTRUCTION.format(spanish=spanish)))
+    if not reply or reply.upper().rstrip(".!") == REFUSAL:
+        return None, ""
+    marker, _, flipped = reply.partition(">")
+    flipped = flipped.strip()
+    was = {"M": Gender.MASCULINE, "F": Gender.FEMININE}.get(marker.strip().upper())
+    if not was or not flipped or flipped == spanish:
+        return None, ""
+    return was, flipped
+
+
 def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
                        model: str | None = None) -> list[Variant]:
     """Every attested reading of `cue`, translated. One model call per reading.
@@ -398,14 +489,36 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
     phrases = gather_phrases(cue)
     # Form-neutral, like the phrase channel it comes from: what `up his ass` agrees on is
     # the same whether the scene is tu or usted.
-    agreed = tuple(c.spanish for hit in phrases for c in hit.consensus)
+    # De-duplicated: two phrases of the same cue can agree on the same word, and
+    # `Get in the car.` reported `coche, coche` because `the car` and `in the car` both did.
+    agreed = tuple(dict.fromkeys(c.spanish for hit in phrases for c in hit.consensus))
     if tag_forms is None:
         from .address_llm import cached_tagger
         from .config import settings
         tag_forms = cached_tagger(ask, model=model or settings().gemini_model)
 
-    for evidence in group_by_address(cue, tag_forms=tag_forms):
-        prompt = format_variant_prompt(cue, evidence, limit=limit, phrases=phrases)
+    # The readings used to be N independent translations, one per form, each shown only
+    # the precedent that addresses its own listener. That is not one line in three forms,
+    # it is three unrelated lines: `Oh, fuck me!` gave tú 117 precedents headed by
+    # `Fuck me!` -> `¡Cógeme!` at 0.84, and usted **three**, none of them about fuck me,
+    # so usted came back `¡La puta madre!`. Switching the form rewrote the sentence.
+    #
+    # So the wording is decided once, on the reading the corpus attests best, and every
+    # other form is that same line declined. One call per reading either way.
+    readings = group_by_address(cue, tag_forms=tag_forms)
+    base = max(readings, key=lambda e: (len(e.precedents),
+                                        max((p.similarity for p in e.precedents), default=0.0)))
+    decided = ""
+
+    for evidence in sorted(readings, key=lambda e: e is not base):
+        if evidence is base or not decided:
+            prompt = format_variant_prompt(cue, evidence, limit=limit, phrases=phrases)
+        else:
+            who, description = _ASKED[evidence.form]
+            prompt = DECLINE_INSTRUCTION.format(
+                spanish=decided,
+                who=f"{who} — {description}" if who else description,
+                grammar=_GRAMMAR[evidence.form])
         spanish = _first_line(ask(prompt))
 
         # The model was given the right to refuse a reading the line rules out -- usted to
@@ -450,6 +563,18 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
                 form, well_formed, _ = check_output(spanish, ask=ask)
                 report = check_register(spanish)
 
+        if evidence is base:
+            decided = spanish
+
+        # Asking for the other gender is also how we find out whether there is one: a line
+        # that marks nobody's gender has nothing to change and comes back NONE. Most lines
+        # are that, so the question is asked once on the decided wording and only pursued
+        # for the remaining readings when the first answer says there is something to move.
+        # Asked per reading and not once per cue: gender can appear in the declension even
+        # when the decided wording has none. `No te quiero matar.` marks nobody -- `te` is
+        # the same for either -- while its usted reading has to choose `lo` or `la`.
+        gender, other = _regender(spanish, ask=ask) if spanish else (None, "")
+
         out.append(Variant(
             form=evidence.form,
             spanish=spanish,
@@ -466,6 +591,8 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
                                default=0.0),
             grounded=bool(evidence.precedents or evidence.shared or agreed),
             agreed=agreed,
+            gender=gender,
+            other_gender=other,
         ))
     return out
 

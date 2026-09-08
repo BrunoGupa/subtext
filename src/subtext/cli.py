@@ -360,6 +360,8 @@ def cmd_localise(args: argparse.Namespace) -> int:
                          f"the citation supports less than it appears to")
         if v.agreed:
             flags.append("agreed rendering: " + ", ".join(v.agreed))
+        if v.gender:
+            flags.append(f"{v.gender.value} -- {v.gender.other.value}: {v.other_gender}")
         if not v.well_formed:
             flags.append("GRAMMAR -- failed the check after one retry")
         if not v.form_confirmed:

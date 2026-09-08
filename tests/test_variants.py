@@ -83,6 +83,7 @@ def test_a_bad_conjugation_is_sent_back_once_and_python_decides():
         '{"addresses": "ustedes", "well_formed": false, "fix": "alégrenme"}',
         "Adelante, alégrenme el día.",                                  # retry
         '{"addresses": "ustedes", "well_formed": true, "fix": ""}',
+        "NONE",   # nobody's gender is marked, so there is nothing to flip
     ])
     variants = translate_variants(
         "Go ahead, make my day", ask=lambda _p: next(replies),
@@ -98,6 +99,7 @@ def test_a_line_still_wrong_after_the_retry_is_returned_flagged():
         '{"addresses": "ustedes", "well_formed": false, "fix": ""}',
         "Adelante, alégranme el día.",
         '{"addresses": "ustedes", "well_formed": false, "fix": ""}',
+        "NONE",
     ])
     variants = translate_variants(
         "Go ahead, make my day", ask=lambda _p: next(replies),
@@ -184,3 +186,73 @@ def test_agreement_is_grounding_even_with_no_close_neighbour():
     unbacked = Variant(form=Address.UNMARKED, spanish="Ayuda a la felación.",
                        top_similarity=0.55)
     assert unbacked.weakly_grounded
+
+
+# --- One decision, declined --------------------------------------------------------
+
+def test_the_second_reading_declines_the_first_instead_of_retranslating():
+    """Readings were N independent translations, one per form, each shown only the
+    precedent addressing its own listener -- which is three unrelated lines, not one line
+    in three forms. `Oh, fuck me!` gave tú 117 precedents headed by `Fuck me!` ->
+    `¡Cógeme!` at 0.84 and usted three, none of them about fuck me, so usted came back
+    `¡La puta madre!`. Switching the form rewrote the sentence."""
+    from subtext.variants import DECLINE_INSTRUCTION
+
+    flat = " ".join(DECLINE_INSTRUCTION.split())
+    assert "change of GRAMMAR, not of wording" in flat
+    assert "If a word can stay, it stays." in flat
+    # A line that addresses nobody has nothing to decline, and saying so is how the false
+    # ambiguity collapses instead of producing a second sentence.
+    assert "addresses nobody" in flat and "Output NONE" in flat
+
+
+def test_declension_prompt_carries_the_decided_line_and_the_target_grammar():
+    from subtext.address import Address
+    from subtext.variants import DECLINE_INSTRUCTION, _ASKED, _GRAMMAR
+
+    who, description = _ASKED[Address.USTED]
+    text = DECLINE_INSTRUCTION.format(spanish="Súbete al coche.",
+                                      who=f"{who} — {description}",
+                                      grammar=_GRAMMAR[Address.USTED])
+    assert "Súbete al coche." in text
+    assert _GRAMMAR[Address.USTED] in text
+
+
+# --- Gender, the other axis English leaves open ------------------------------------
+
+def test_a_line_that_marks_nobody_gender_offers_no_choice():
+    """Most lines are this, which is why the question is asked once per cue and not once
+    per reading: `Cállate.` cannot be feminine, so there is nothing for a button to do."""
+    from subtext.variants import _regender
+
+    gender, other = _regender("Cállate.", ask=lambda _p: "NONE")
+    assert gender is None and other == ""
+
+
+def test_the_direction_comes_back_with_the_flip():
+    """One call carries both facts. Asked separately, a line already feminine and a line
+    with no gender both answer "unchanged" to "make it feminine", and telling them apart
+    cost a second question on every genderless line -- which is most of them."""
+    from subtext.variants import Gender, _regender
+
+    was, other = _regender("No quiero matarlo.", ask=lambda _p: "M> No quiero matarla.")
+    assert was is Gender.MASCULINE and other == "No quiero matarla."
+
+    was, other = _regender("Estoy cansada.", ask=lambda _p: "F> Estoy cansado.")
+    assert was is Gender.FEMININE and other == "Estoy cansado."
+
+
+def test_an_answer_without_a_direction_is_not_trusted():
+    """A bare line back means the model ignored the protocol, and guessing which gender it
+    started in would put a wrong label on a button."""
+    from subtext.variants import _regender
+
+    assert _regender("Estás cansado.", ask=lambda _p: "Estás cansada.") == (None, "")
+
+
+def test_the_regender_prompt_moves_people_and_not_things():
+    from subtext.variants import REGENDER_INSTRUCTION
+
+    flat = " ".join(REGENDER_INSTRUCTION.split())
+    assert "change of AGREEMENT, not of wording" in flat
+    assert "`el coche` stays `el coche`" in flat
