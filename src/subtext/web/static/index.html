@@ -385,6 +385,21 @@ function tookFor(){
     · ${t.total_s}s in all</p>`;
 }
 
+// The control. Same model, same line, asked for "Mexican Spanish" with nothing behind it:
+// what a person gets today. No citation, because there is nothing to cite, and its
+// peninsular words are flagged by the same lexicon that gates the readings above.
+function baselineFor(){
+  const b = data.baseline;
+  if (!b || !b.spanish) return '';
+  const nm = (b.not_mexican || []).length
+    ? `<span class="chip w">not Mexican: ${esc(b.not_mexican.join(', '))}</span>` : '';
+  return `<p class="altlab">For comparison — the same model with no corpus</p><div class="alts">
+    <div class="alt">
+      <span class="t">${esc(b.spanish)}<span class="src">Gemini 3.8 Flash asked for “Mexican Spanish”, no evidence, no citation</span></span>
+      <span class="s">${nm || 'uncited'}</span>
+    </div></div>`;
+}
+
 function altsFor(r){
   if (!(r.alternatives || []).length) return '';
   return `<p class="altlab">Also attested</p><div class="alts">` + r.alternatives.map(a =>
@@ -412,6 +427,7 @@ function draw(){
     ${r.pair_ids.length ? `<p class="ids">cited: ${r.pair_ids.map(p => 'line ' + p).join('  ')}</p>` : ''}
     ${tookFor()}
     ${altsFor(r)}
+    ${baselineFor()}
   </div>`;
   document.querySelectorAll('#persons button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.id === chosen)));
@@ -531,6 +547,11 @@ f.addEventListener('submit', async e => {
       Check that ClickHouse is up and that GOOGLE_API_KEY is set.</p>`;
   } finally { checkLimit(); }
 });
+
+// A line in the URL (?q=...) is localised on arrival, so a result can be linked to and
+// a demo can open on an answer rather than on an empty box.
+const arriving = new URLSearchParams(location.search).get('q');
+if (arriving){ q.value = arriving; f.requestSubmit(); }
 </script>
 </body>
 </html>

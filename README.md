@@ -117,8 +117,14 @@ each half took: ClickHouse Cloud for the precedents and the agreement, Gemini fo
 readings. **The example lines on the page are not in the corpus** — checked one by one. An
 exact match would simply hand back a subtitle somebody already wrote, so the demo lines are
 ones the system has to assemble from precedent: phrases it has seen, in lines it has not.
-Two evaluation pages, `/examples/paper` and `/examples/film`, show full pipeline output over
-the 40 scholar-chosen lines and the 102 film-sampled lines, rendered ahead of time.
+Under every answer the page also prints the **control**: the same Gemini model asked for
+"Mexican Spanish" with no corpus behind it, uncited, run through the same register lexicon.
+On mild lines the two often agree; the corpus earns its keep where register is loaded
+(`Get out of my car.` → `Sal de mi auto.`, cited, against the model's `Bájate de mi carro.`,
+where subtitlers write `auto` 4:1). Two evaluation pages, `/examples/paper` and
+`/examples/film`, show full pipeline output over the 40 scholar-chosen lines and the 102
+film-sampled lines, rendered ahead of time. A line in the URL, `/?q=Shut+up+and+drive.`, is
+localised on arrival.
 
 The question-answering commands — `subtext search`, `aggregate`, `schema` and `ask` — are
 still in the CLI and still work, but the corpus their examples were written against
@@ -307,6 +313,9 @@ scholars as cases of difficulty, 37 of them absent from the corpus:
 | readings failing the register gate (peninsular Spanish) | **0** |
 | lines with no surviving reading | 1 (*And I will strike down upon thee* — the model declined every form of address) |
 | median wall time per line | 13.6 s, of which ~4 s is ClickHouse Cloud |
+
+The 102 **film-sampled** lines (none in the corpus) ran the same day: 145 readings, 16
+weak, 0 peninsular leaks, 3 lines with no surviving reading, 0 errors.
 
 `Shut the fuck up` → `Cierra la boca.` where the official Spanish subtitle has `cierra el
 pico`; `What the fuck do you think I'm doing?` → `¿Qué chingados crees que estoy haciendo?`

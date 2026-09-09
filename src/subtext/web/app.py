@@ -184,6 +184,26 @@ def _asker(model: str | None = None):
     return asker(model)
 
 
+BASELINE_PROMPT = ("Translate this English subtitle line into Mexican Spanish. "
+                   "Reply with the Spanish line only, nothing else.\n\n")
+
+
+def _baseline(line: str, ask) -> dict[str, Any]:
+    from ..localise import check_register
+    from ..variants import BLOCKED
+
+    try:
+        reply = (ask(BASELINE_PROMPT + line) or "").strip()
+    except Exception as exc:  # the control failing must not take the answer down with it
+        return {"spanish": "", "error": str(exc)[:120], "not_mexican": []}
+    if not reply or reply.startswith(BLOCKED):
+        return {"spanish": "", "error": reply or "empty response", "not_mexican": []}
+    spanish = reply.splitlines()[0].strip().strip('"“”')
+    report = check_register(spanish)
+    return {"spanish": spanish, "error": "",
+            "not_mexican": list(report.not_mexican) + list(report.other_latam)}
+
+
 def _localise(line: str) -> dict[str, Any]:
     from ..address_llm import cached_tagger
     from ..variants import translate_variants
@@ -204,6 +224,11 @@ def _localise(line: str) -> dict[str, Any]:
                                   tag_forms=cached_tagger(ask, model=model))
     total_seconds = time.perf_counter() - started
     return {
+        # The control: the same model asked the same thing with no evidence at all. It is
+        # what a person gets today, and the difference between it and the readings above
+        # is the whole product. Never gated, never retried, never cited -- it is shown as
+        # what it is, and run through the register lexicon so its peninsular words show.
+        "baseline": _baseline(line, ask),
         "line": line,
         # Where the time went, so the page can say it. The phrase channel is ten round
         # trips to ClickHouse Cloud; everything after it is the vector channel plus one
