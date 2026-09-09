@@ -134,10 +134,17 @@ input:focus-visible{outline:none}
 .alt .s{font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;
         text-align:right;font-variant-numeric:tabular-nums}
 
-.why{margin:22px 0 0;padding:12px 14px;background:var(--sunk);border-radius:3px;
-     font-size:13px;color:var(--muted);max-width:78ch}
-.why b{color:var(--ink);font-weight:500}
-.why .n{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.why{margin:22px 0 0}
+.why p{margin:10px 0 0;font-size:13.5px;color:var(--muted);max-width:70ch}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);
+      border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+@media (max-width:560px){.nums{grid-template-columns:1fr}}
+.num{background:var(--surface);padding:12px 14px}
+.num b{display:block;font-family:var(--mono);font-size:24px;font-weight:500;letter-spacing:-.02em;
+       font-variant-numeric:tabular-nums;color:var(--ink)}
+.num span{display:block;font-size:12px;color:var(--muted);line-height:1.35;margin-top:3px}
+.more{margin-top:10px}
+.tbl tr.hid{display:none}
 /* The showcase: expert-chosen lines with all four answers side by side. */
 /* Wider than the column: five languages side by side need the room, and the page's 760px
    measure is for reading a line, not a table. Centred on the same axis. */
@@ -204,10 +211,8 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   <p class="eyebrow">The faithful subtitle track · Mexican Spanish</p>
   <h1>Type an English line.<br>Get it in Mexican Spanish, <em>the way subtitlers really
   write it</em>, with proof.</h1>
-  <p class="lede">A new line, written for yours — not a lookup. Vector search in ClickHouse
-  Cloud finds what Mexican translators wrote for lines like it, SQL measures what they agree
-  on, and Gemini writes the one line that evidence allows. Every choice cites the corpus line
-  it rests on, out of 335,800.</p>
+  <p class="lede">A new line written for yours, grounded in 335,800 lines Mexican subtitlers
+  wrote, and cited by the line it rests on.</p>
 
   <form id="f" autocomplete="off">
     <input id="q" name="q" placeholder="Nice jacket." aria-label="English subtitle line" required>
@@ -223,10 +228,8 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     <button class="ex" type="button">Shut up and drive.</button>
     <button class="ex" type="button">Get out of my car.</button>
   </div>
-  <p class="exnote"><b>None of these lines exists in the corpus.</b> Checked line by line: an
-  exact match would simply hand back the subtitle somebody already wrote, so the examples are
-  lines the system has to assemble from precedent — the phrases it has seen, in lines it has
-  not.</p>
+  <p class="exnote"><b>None of these lines exists in the corpus.</b> Checked line by line — an
+  exact match would only be a lookup.</p>
 
   <div class="examples films">
     <span>Or a line the literature calls among the hardest to translate:</span>
@@ -253,28 +256,27 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
 <section id="out" aria-live="polite"></section>
 
 <section class="context">
-  <p class="why"><b>Why this has to exist.</b> Of the <span class="n">135,470</span> films and
-  episodes in the 103.6-million-line OpenSubtitles corpus, only <span class="n">241</span>
-  are subtitled in recognisably Mexican Spanish — <span class="n">0.18%</span>. Peninsular
-  register markers outnumber Mexican ones <span class="n">7 : 1</span> corpus-wide, and
-  <span class="n">39.6%</span> of English lines containing <i>fuck</i> lose all profanity in
-  their Spanish subtitle. A Mexican viewer almost never gets a subtitle in their own Spanish
-  that says what the character said. This finds the few hundred films where somebody wrote
-  one, and reuses their choices.</p>
+  <div class="why">
+    <div class="nums">
+      <div class="num"><b>241</b><span>of 135,470 films are subtitled in Mexican Spanish</span></div>
+      <div class="num"><b>7 : 1</b><span>peninsular over Mexican register, corpus-wide</span></div>
+      <div class="num"><b>39.6%</b><span>of English lines with <i>fuck</i> lose it in Spanish</span></div>
+    </div>
+    <p>A Mexican viewer almost never gets a subtitle, in their own Spanish, that says what the
+    character said. This reuses the few hundred films where somebody wrote one.</p>
+  </div>
 
   <section class="show" aria-labelledby="showh">
-    <h2 id="showh">Expert-chosen lines, and what each system did with them</h2>
-    <p class="sub">Twenty lines from the evaluation, <b>selected by us to show the range</b>. The
-    films were chosen by published translation scholars as cases of difficulty. Beside each:
-    what Subtext wrote and the corpus lines it cites; the <b>official subtitle</b> that shipped
-    (European Spanish for <i>Pulp Fiction</i>, Mexican for the rest); the same Gemini with no
-    corpus; and Google Translate. The full runs, failures included, are on the two pages
-    below.</p>
+    <h2 id="showh">Twenty hard lines, four answers each</h2>
+    <p class="sub">Lines from films translation scholars picked as difficult, <b>chosen by us to
+    show the range</b>. Subtext with its citations · the subtitle that shipped · Gemini alone ·
+    Google Translate. The full runs, failures included, are linked below.</p>
     <div class="tbl"><table id="showcase">
       <thead><tr><th>English</th><th>Subtext · cited</th><th>Official subtitle</th>
       <th>Gemini alone</th><th>Google Translate</th></tr></thead>
       <tbody></tbody>
     </table></div>
+    <button class="ex more" id="more" type="button">Show all 20</button>
   </section>
 
   <div class="links">
@@ -323,9 +325,9 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     <li id="ref2">Rohmawati, I. (2021). “Subtitling Strategies of Swear Words in Deadpool One &amp;
       Deadpool Two Film.” <i>Indonesian Journal of EFL and Linguistics</i> 6(1): 219–232.</li>
   </ol>
-  <p class="source"><b>line 88388575</b> names a row of the corpus — its <code>pair_id</code>,
-  stable across rebuilds, so any answer can be checked. Corpus: OPUS OpenSubtitles ·
-  <a href="http://www.opensubtitles.org/">opensubtitles.org</a> · Lison &amp; Tiedemann (2016).</p>
+  <p class="source"><b>line 88388575</b> is a corpus row’s <code>pair_id</code>, stable across
+  rebuilds. Corpus: OPUS OpenSubtitles · <a href="http://www.opensubtitles.org/">opensubtitles.org</a>
+  · Lison &amp; Tiedemann (2016).</p>
 </footer>
 </div>
 
@@ -372,7 +374,7 @@ function flagsFor(list){
 // Called at the end of the script: `esc` is declared below it, and a reference before
 // the declaration throws and takes every handler on the page down with it.
 function renderShowcase(){
-document.querySelector('#showcase tbody').innerHTML = SHOWCASE.map(r => `<tr>
+document.querySelector('#showcase tbody').innerHTML = SHOWCASE.map((r, i) => `<tr${i >= 8 ? ' class="hid"' : ''}>
   <td class="en">${esc(r.en)}<small>${esc(r.film)}</small></td>
   <td class="ours">${esc(r.es)}${r.weak ? '<span class="chip w">weak</span>' : ''}
     <small>${r.agreed.length ? 'agreed: ' + esc(r.agreed[0]) + ' · ' : ''}${r.ids.map(i => 'line ' + i).join(' ')}</small></td>
@@ -641,6 +643,11 @@ f.addEventListener('submit', async e => {
 // A line in the URL (?q=...) is localised on arrival, so a result can be linked to and
 // a demo can open on an answer rather than on an empty box.
 renderShowcase();
+document.getElementById('more').addEventListener('click', e => {
+  const hidden = document.querySelectorAll('#showcase tr.hid');
+  hidden.forEach(tr => tr.classList.remove('hid'));
+  e.currentTarget.hidden = true;
+});
 const arriving = new URLSearchParams(location.search).get('q');
 if (arriving){ q.value = arriving; f.requestSubmit(); }
 </script>
