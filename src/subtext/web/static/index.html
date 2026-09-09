@@ -128,6 +128,24 @@ input::placeholder{color:var(--faint)}
 .alt .s{font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;
         text-align:right;font-variant-numeric:tabular-nums}
 
+.why{margin:22px 0 0;padding:12px 14px;background:var(--sunk);border-radius:3px;
+     font-size:13px;color:var(--muted);max-width:78ch}
+.why b{color:var(--ink);font-weight:500}
+.why .n{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.exnote{font-size:12px;color:var(--faint);margin:8px 0 0;max-width:78ch}
+.took{font-family:var(--mono);font-size:11px;color:var(--faint);margin:12px 0 0;
+      font-variant-numeric:tabular-nums}
+.took b{color:var(--anchor);font-weight:500}
+.links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:14px 0 0;font-size:13px}
+.links a{color:var(--anchor);text-decoration:none;border-bottom:1px solid var(--anchor-bg)}
+.links a:hover{border-bottom-color:var(--anchor)}
+.stack{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:0 0 18px;
+       font-size:12px;color:var(--faint)}
+.stack .lab{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+            margin-right:4px}
+.stack span.t{border:1px solid var(--rule);border-radius:2px;padding:3px 9px;color:var(--muted);
+              background:var(--surface);white-space:nowrap}
+.stack span.t b{color:var(--ink);font-weight:500}
 footer{border-top:1px solid var(--rule);padding:26px 0 44px;color:var(--muted);font-size:12.5px}
 footer a{color:var(--muted)}
 .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
@@ -157,7 +175,9 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   <p class="eyebrow">The faithful subtitle track · Mexican Spanish</p>
   <h1>Type an English line.<br>See how a Mexican subtitler <em>actually wrote it</em>.</h1>
   <p class="lede">Retrieved from 335,800 subtitle lines written by Mexican translators.
-  Nothing is invented — every answer cites the line somebody really wrote.</p>
+  Nothing is invented — every answer cites the line somebody really wrote. Vector search in
+  ClickHouse Cloud finds the precedent, SQL measures what the precedents agree on, and
+  Gemini writes the one line it is allowed to write.</p>
 
   <form id="f" autocomplete="off">
     <input id="q" name="q" placeholder="Nice jacket." aria-label="English subtitle line" required>
@@ -168,11 +188,15 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   <div class="examples">
     <span>Try:</span>
     <button class="ex" type="button">Come with me if you want to live.</button>
-    <button class="ex" type="button">Are you talking to me?</button>
-    <button class="ex" type="button">Nice jacket.</button>
-    <button class="ex" type="button">Get in the car.</button>
-    <button class="ex" type="button">Are you sure?</button>
+    <button class="ex" type="button">You talking to me?</button>
+    <button class="ex" type="button">I like your jacket.</button>
+    <button class="ex" type="button">Shut up and drive.</button>
+    <button class="ex" type="button">Get out of my car.</button>
   </div>
+  <p class="exnote"><b>None of these lines exists in the corpus.</b> Checked line by line: an
+  exact match would simply hand back the subtitle somebody already wrote, so the examples are
+  lines the system has to assemble from precedent — the phrases it has seen, in lines it has
+  not.</p>
 
   <div class="examples films">
     <span>Or a line the literature calls among the hardest to translate:</span>
@@ -184,6 +208,21 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   <div class="examples reel" id="reel" hidden>
     <span id="reelnote"></span>
     <span class="reelrow" id="reelrow"></span>
+  </div>
+
+  <p class="why"><b>Why this has to exist.</b> Of the <span class="n">135,470</span> films and
+  episodes in the 103.6-million-line OpenSubtitles corpus, only <span class="n">241</span>
+  are subtitled in recognisably Mexican Spanish — <span class="n">0.18%</span>. Peninsular
+  register markers outnumber Mexican ones <span class="n">7 : 1</span> corpus-wide, and
+  <span class="n">39.6%</span> of English lines containing <i>fuck</i> lose all profanity in
+  their Spanish subtitle. A Mexican viewer almost never gets a subtitle in their own Spanish
+  that says what the character said. This finds the few hundred films where somebody wrote
+  one, and reuses their choices.</p>
+
+  <div class="links">
+    <a href="/examples/paper">Evaluation: 40 lines chosen by translation scholars</a>
+    <a href="/examples/film">Evaluation: 102 profane lines from the same films</a>
+    <a href="https://github.com/BrunoGupa/subtext">Source on GitHub (Apache-2.0)</a>
   </div>
 </header>
 
@@ -198,6 +237,14 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
 <section id="out" aria-live="polite"></section>
 
 <footer>
+  <div class="stack">
+    <span class="lab">Built on</span>
+    <span class="t"><b>Google Cloud</b> · Cloud Run</span>
+    <span class="t"><b>Gemini 3.8 Flash</b> via Google ADK</span>
+    <span class="t"><b>gemini-embedding-001</b> · 768-d</span>
+    <span class="t"><b>ClickHouse Cloud</b> on GCP · HNSW vector index + SQL</span>
+    <span class="t"><b>mcp-clickhouse</b> · the official ClickHouse MCP server</span>
+  </div>
   <div class="legend">
     <div class="card">
       <span class="chip a">agreed · cansado · 1749×</span>
@@ -322,6 +369,22 @@ function chipsFor(r){
   return out.join('');
 }
 
+// Where the seconds went. The two halves are different products: the corpus half is
+// ClickHouse Cloud answering ten phrase queries and one HNSW vector search; the rest is
+// Gemini writing one line per reading. A repeat is served from memory and says so, because
+// an instant answer that is really a cached one would be advertising the wrong thing.
+function tookFor(){
+  const t = data.timing;
+  if (!t) return '';
+  if (data.cached)
+    return `<p class="took">served from memory — first computed in ${t.total_s}s
+      (ClickHouse Cloud <b>${t.corpus_s}s</b> · Gemini ${(t.total_s - t.corpus_s).toFixed(1)}s)</p>`;
+  return `<p class="took">ClickHouse Cloud <b>${t.corpus_s}s</b> for every precedent and
+    agreement in 335,800 lines · Gemini ${(t.total_s - t.corpus_s).toFixed(1)}s for
+    ${data.readings.length} reading${data.readings.length === 1 ? '' : 's'}
+    · ${t.total_s}s in all</p>`;
+}
+
 function altsFor(r){
   if (!(r.alternatives || []).length) return '';
   return `<p class="altlab">Also attested</p><div class="alts">` + r.alternatives.map(a =>
@@ -347,6 +410,7 @@ function draw(){
     <p class="es">${esc(textFor(r))}</p>
     <div class="chips">${chipsFor(r)}</div>
     ${r.pair_ids.length ? `<p class="ids">cited: ${r.pair_ids.map(p => 'line ' + p).join('  ')}</p>` : ''}
+    ${tookFor()}
     ${altsFor(r)}
   </div>`;
   document.querySelectorAll('#persons button').forEach(b =>

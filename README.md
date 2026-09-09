@@ -4,8 +4,14 @@
 Mexican subtitlers wrote — 103.6 million subtitle pairs in ClickHouse — and citable by the
 line it came from.*
 
-**Agentic Cinema: The Blockbuster Hackathon (Google Cloud) — ClickHouse track.**
-Deadline **Sept 9, 2026, 2:00 PM PDT**. Apache-2.0.
+**Agentic Cinema: The Blockbuster Hackathon (Google Cloud) — ClickHouse track.** Apache-2.0.
+
+**Built on Google Cloud:** Gemini 3.8 Flash through **Google ADK** · `gemini-embedding-001`
+for the vector channel · **Cloud Run** for the site · **ClickHouse Cloud** on GCP for the
+corpus, the SQL and the HNSW vector search, reached at runtime through **`mcp-clickhouse`**,
+the official ClickHouse MCP server.
+
+**Live:** _hosted URL goes here before submission_ · **Video:** _YouTube link goes here_
 
 ## Two subtitle tracks, and only one of them exists
 
@@ -106,9 +112,13 @@ make serve                             # the web UI on http://127.0.0.1:8000
 `subtext localise --evidence-only` shows what was retrieved without writing a translation,
 so the retrieval can be inspected on its own.
 
-The web UI takes one English line and shows every reading with its evidence. ⚠️ **It has
-not been re-tested since the product changed on 2026-09-07** — see the flag under *How it
-works*.
+The web UI takes one English line and shows every reading with its evidence, and how long
+each half took: ClickHouse Cloud for the precedents and the agreement, Gemini for the
+readings. **The example lines on the page are not in the corpus** — checked one by one. An
+exact match would simply hand back a subtitle somebody already wrote, so the demo lines are
+ones the system has to assemble from precedent: phrases it has seen, in lines it has not.
+Two evaluation pages, `/examples/paper` and `/examples/film`, show full pipeline output over
+the 40 scholar-chosen lines and the 102 film-sampled lines, rendered ahead of time.
 
 The question-answering commands — `subtext search`, `aggregate`, `schema` and `ask` — are
 still in the CLI and still work, but the corpus their examples were written against
@@ -206,11 +216,6 @@ rather than shipped with a `pair_id` that does not support it.
 
 ## How it works
 
-> ⚠️ **Flag — this section describes the pipeline, not the front end.** The web UI has not
-> been exercised end to end since the product changed on 2026-09-07, so the tab names,
-> the `/api` shapes and the trace it renders are all subject to change. Expect this section
-> and the Quick start above to be rewritten once the UI is tested.
-
 ```
 English cue
    │
@@ -289,9 +294,26 @@ sample corpus generated for this repository, and its "hand-labelled" golden set 
 by the same process that wrote the dialogue. Numbers produced that way measure self-consistency,
 not retrieval quality, so they have been removed rather than restated with a caveat.
 
-What replaces it is measured against text this project did not write: the Spanish side of a
-human-translated subtitle corpus, used as a reference translation. That work is in progress and
-its numbers will appear here when they exist.
+What replaces it is measured against text this project did not write. The full pipeline was
+run over the **paper** group on 2026-09-09 — 40 lines chosen by published translation
+scholars as cases of difficulty, 37 of them absent from the corpus:
+
+| | |
+|---|---|
+| lines translated | **40 of 40**, none refused for content |
+| readings written (tú / usted / ustedes / unmarked) | 57 |
+| readings grounded in a cited `pair_id` | 56 |
+| readings flagged `WEAK` (precedent too far to support the citation) | 7 |
+| readings failing the register gate (peninsular Spanish) | **0** |
+| lines with no surviving reading | 1 (*And I will strike down upon thee* — the model declined every form of address) |
+| median wall time per line | 13.6 s, of which ~4 s is ClickHouse Cloud |
+
+`Shut the fuck up` → `Cierra la boca.` where the official Spanish subtitle has `cierra el
+pico`; `What the fuck do you think I'm doing?` → `¿Qué chingados crees que estoy haciendo?`
+where the official subtitle drops the profanity entirely (`¿Qué crees que hago?`). The 102
+film-sampled lines run the same way; both sets are rendered line by line, with every
+citation, on the site's evaluation pages. The official subtitles in the paper group are
+European Spanish, printed for comparison, not as the right answer.
 
 ## Stack
 - **Gemini + Google ADK** — planning, tool selection, self-validation (hackathon requirement #1)
@@ -332,12 +354,30 @@ comments and string literals stripped before keyword checks — *and* ClickHouse
 connects as a read-only user, so a `DROP` that somehow got past the guard still fails at the
 server. Config is entirely environment-driven; nothing in this repo carries a credential.
 
+## Deploying the site
+
+The web UI is one container ([`Dockerfile`](Dockerfile)) with no state of its own: the corpus
+and the embeddings live in ClickHouse Cloud, the translations come from Gemini, and both are
+reached with environment variables — the same names as `.env.example`, set on the service
+rather than in a file. On Cloud Run:
+
+```bash
+gcloud run deploy subtext --source . --region us-east1 --allow-unauthenticated \
+  --set-env-vars CLICKHOUSE_HOST=...,CLICKHOUSE_HTTP_PORT=8443,CLICKHOUSE_SECURE=true,\
+CLICKHOUSE_USER=...,CLICKHOUSE_DATABASE=subtext,SUBTEXT_MODEL=gemini-3.8-flash \
+  --set-secrets CLICKHOUSE_PASSWORD=clickhouse-password:latest,GOOGLE_API_KEY=gemini-key:latest \
+  --max-instances 1 --memory 1Gi
+```
+
+`--max-instances 1` is deliberate: the per-address rate limit and the daily Gemini budget in
+[`app.py`](src/subtext/web/app.py) are held in memory, so one instance is what makes them
+real. The site is public, and every request is paid Gemini tokens.
+
 ## Status
-🔒 **PRIVATE while under construction.** The corpus, both retrieval channels, the
-localisation pipeline and the web UI run end to end. The evaluation over the 207-phrase set
-is in progress and the retrieval evaluation that preceded it was withdrawn (see above);
-hosting is decided but not built. Goes public before submission — the hackathon requires a
-public repo under an OSI licence (Apache-2.0, already in `LICENSE`) and a publicly hosted URL.
+The corpus, both retrieval channels, the localisation pipeline, the web UI and the
+evaluation over the scholar-chosen lines all run end to end. Open work, in order: consolidate
+the CLI and web onto the ADK `LoopAgent` path; run the remaining evaluation groups; a shared
+store for the rate limit if the site ever runs on more than one instance.
 
 ## Docs
 | File | What |

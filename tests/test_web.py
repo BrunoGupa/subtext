@@ -25,11 +25,26 @@ def test_index_serves_the_page():
     assert "/api/localise" in page.text
 
 
-def test_the_page_offers_an_example_the_corpus_answers_three_ways():
-    """The first thing a visitor sees has to show what the tool is *for*, and what it is
-    for is that English `you` is three things at once. `Get in the car.` is in the corpus
-    as `Súbete al coche.`, `Súbase.` and `- Entren al carro.`"""
-    assert "Get in the car." in client.get("/").text
+def test_the_page_offers_examples_the_corpus_has_never_seen():
+    """The first thing a visitor sees has to show what the tool is *for*: English `you` is
+    three things at once, and the reading has to be assembled from precedent. `Get in the
+    car.` used to be the example, and it is in the corpus four times -- so the page was
+    demonstrating a lookup. Decided 2026-09-09: every example is a line the corpus does
+    not contain (checked with `SELECT count() FROM mx_corpus WHERE en = ...`, all zero),
+    and the page says so beside them."""
+    page = client.get("/").text
+    for line in ("Come with me if you want to live.", "You talking to me?",
+                 "I like your jacket.", "Shut up and drive.", "Get out of my car."):
+        assert line in page
+    assert "None of these lines exists in the corpus" in page
+
+
+def test_the_evaluation_pages_are_served_by_name_only():
+    """The rendered evaluation pages are whitelisted by name: a path must never become a
+    file read. The paper page ships; the film page may not exist yet and must 404 cleanly."""
+    assert client.get("/examples/paper").status_code == 200
+    assert client.get("/examples/../index").status_code in (404, 400)
+    assert client.get("/examples/app.py").status_code == 404
 
 
 @pytest.mark.parametrize("body", [

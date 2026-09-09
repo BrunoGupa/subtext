@@ -73,6 +73,24 @@ async def index() -> str:
     return (STATIC / "index.html").read_text(encoding="utf-8")
 
 
+#: Full pipeline runs over the evaluation sets, one page per set, rendered ahead of time
+#: so a judge can read 142 lines of output without spending 142 lines of Gemini. Whitelisted
+#: by name: a path parameter must never become a file read.
+EXAMPLE_PAGES = {
+    "paper": "paper-block-40.html",
+    "film": "film-block-102.html",
+}
+
+
+@app.get("/examples/{name}", response_class=HTMLResponse)
+async def example_page(name: str) -> str:
+    file = EXAMPLE_PAGES.get(name)
+    path = STATIC / "examples" / file if file else None
+    if path is None or not path.exists():
+        raise HTTPException(status_code=404, detail="no such example page")
+    return path.read_text(encoding="utf-8")
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}
@@ -174,16 +192,24 @@ def _localise(line: str) -> dict[str, Any]:
 
     model = settings().gemini_model
     ask = _asker(model)
+    started = time.perf_counter()
     # Form-neutral and fetched once for the cue, so it rides on the response rather than
     # on every reading: what a phrase agrees on is the same for tú, usted and ustedes.
     # Once for the whole request, too: `translate_variants` needs the identical object to
     # build its prompts, and fetching it here and again in there ran the phrase channel
     # twice -- 20 round trips to ClickHouse Cloud where 10 answer the question.
     phrases = gather_phrases(line)
+    corpus_seconds = time.perf_counter() - started
     variants = translate_variants(line, ask=ask, phrases=phrases,
                                   tag_forms=cached_tagger(ask, model=model))
+    total_seconds = time.perf_counter() - started
     return {
         "line": line,
+        # Where the time went, so the page can say it. The phrase channel is ten round
+        # trips to ClickHouse Cloud; everything after it is the vector channel plus one
+        # Gemini call per reading. A judge who sees "14 s" deserves to know which half.
+        "timing": {"corpus_s": round(corpus_seconds, 2), "total_s": round(total_seconds, 1)},
+        "cached": False,
         "agreed": [
             {"phrase": hit.phrase, "support": hit.support, "spanish": c.spanish,
              "lines": c.lines, "of_lines": c.of_lines, "enrichment": round(c.enrichment, 1)}
@@ -202,6 +228,11 @@ def _localise(line: str) -> dict[str, Any]:
                 "weak": v.weakly_grounded,
                 "similarity": round(v.top_similarity, 2),
                 "well_formed": v.well_formed,
+                # Whether the answer addressed the person it was asked to. Coming back
+                # UNMARKED is not a failure -- Spanish drops the subject pronoun -- so this
+                # is false only when the model addressed somebody else, which a reviewer
+                # needs to see and a reader of the page could not otherwise tell.
+                "form_confirmed": v.form_confirmed,
                 "not_mexican": v.not_mexican,
                 # A reading the model did not answer is not a refusal and must not be
                 # rendered as one -- see `variants.BLOCKED`.
@@ -243,7 +274,9 @@ async def api_localise(request: LocaliseRequest, http: Request) -> dict[str, Any
         if cached is not None:
             _cache.move_to_end(line)
     if cached is not None:
-        return cached
+        # Said out loud: a repeat answer is instant because it is a repeat, not because
+        # the corpus is fast, and the page must not advertise one as the other.
+        return {**cached, "cached": True}
 
     who = (http.client.host if http.client else "?")
     if not _rate_ok(who):

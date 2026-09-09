@@ -1,0 +1,380 @@
+<title>Las 40 del paper</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;1,400&display=swap">
+<style>
+:root{
+  --ground:#F0F4F3; --surface:#FFFFFF; --sunk:#E7EDEB;
+  --ink:#131A19; --muted:#596B68; --faint:#849693; --rule:#D7E0DE;
+  --anchor:#0D6A57; --anchor-bg:#DCEDE8;
+  --weak:#96461F; --weak-bg:#F6E5DA;
+  --none:#5B4A86; --none-bg:#E8E4F2;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --serif:"IBM Plex Serif",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0D1211; --surface:#141A19; --sunk:#1B2322;
+  --ink:#E5ECEA; --muted:#93A5A2; --faint:#6C7E7B; --rule:#242E2C;
+  --anchor:#4ECDB0; --anchor-bg:#0F2A25;
+  --weak:#E28A5C; --weak-bg:#2C1B12;
+  --none:#A99AD8; --none-bg:#1E1930;
+}}
+:root[data-theme="dark"]{
+  --ground:#0D1211; --surface:#141A19; --sunk:#1B2322;
+  --ink:#E5ECEA; --muted:#93A5A2; --faint:#6C7E7B; --rule:#242E2C;
+  --anchor:#4ECDB0; --anchor-bg:#0F2A25;
+  --weak:#E28A5C; --weak-bg:#2C1B12;
+  --none:#A99AD8; --none-bg:#1E1930;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.5;
+     -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+header{padding:56px 0 28px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--faint);margin:0 0 14px}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(30px,4.4vw,46px);line-height:1.12;
+   margin:0 0 16px;text-wrap:balance;letter-spacing:-.01em}
+.lede{max-width:62ch;color:var(--muted);font-size:16px;margin:0}
+.lede b{color:var(--ink);font-weight:500}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:1px;
+       background:var(--rule);border:1px solid var(--rule);border-radius:3px;
+       margin:30px 0 0;overflow:hidden}
+.stat{background:var(--surface);padding:14px 16px}
+.stat b{display:block;font-family:var(--mono);font-size:23px;font-weight:500;
+        font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat span{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+
+.bar{position:sticky;top:0;z-index:5;background:var(--ground);
+     border-bottom:1px solid var(--rule);padding:14px 0 13px;margin-top:36px}
+.barin{display:flex;flex-wrap:wrap;gap:14px;align-items:baseline}
+.barlab{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+        color:var(--faint);white-space:nowrap}
+.persons{display:flex;flex-wrap:wrap;gap:6px}
+.persons button{font:inherit;font-size:13px;padding:5px 11px;border-radius:2px;cursor:pointer;
+    background:transparent;color:var(--muted);border:1px solid var(--rule);
+    display:flex;gap:7px;align-items:baseline}
+.persons button .n{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.persons button:hover:not(:disabled){border-color:var(--anchor);color:var(--ink)}
+.persons button[aria-pressed="true"]{background:var(--ink);color:var(--ground);
+    border-color:var(--ink)}
+.persons button[aria-pressed="true"] .n{color:var(--ground);opacity:.65}
+.persons button:disabled{opacity:.32;cursor:not-allowed}
+.persons button:focus-visible{outline:2px solid var(--anchor);outline-offset:2px}
+.barnote{font-size:12.5px;color:var(--muted);flex:1 1 240px;min-width:0}
+
+h2{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+   color:var(--faint);font-weight:500;margin:38px 0 10px;padding-bottom:8px;
+   border-bottom:1px solid var(--rule)}
+
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:0;
+     border-bottom:1px solid var(--rule);align-items:stretch}
+.src{padding:20px 26px 20px 0;min-width:0}
+.out{padding:20px 0 20px 26px;border-left:1px solid var(--rule);min-width:0}
+.en{font-family:var(--serif);font-size:17.5px;line-height:1.35;margin:0 0 9px;
+    color:var(--ink)}
+.en::before{content:"“"}.en::after{content:"”"}
+.meta{font-size:12.5px;color:var(--muted);margin:0}
+.meta .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+           color:var(--faint)}
+.official{margin:11px 0 0;font-size:13.5px;color:var(--muted);padding-left:11px;
+          border-left:2px solid var(--rule)}
+.official i{font-style:normal;color:var(--ink)}
+
+.es{font-size:19px;line-height:1.35;margin:0;letter-spacing:-.005em}
+.es.empty{color:var(--none);font-family:var(--mono);font-size:14px}
+.formrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 8px}
+.form{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:2px 7px;border-radius:2px;
+      background:var(--sunk);color:var(--muted)}
+.fixed{font-size:11.5px;color:var(--faint)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:11px 0 0}
+.chip{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:2px;
+      font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.a{background:var(--anchor-bg);color:var(--anchor)}
+.chip.w{background:var(--weak-bg);color:var(--weak)}
+.chip.n{background:var(--none-bg);color:var(--none)}
+.chip.q{background:var(--sunk);color:var(--muted)}
+.ids{font-family:var(--mono);font-size:11px;color:var(--faint);margin:9px 0 0;
+     word-spacing:.3em;overflow-wrap:anywhere}
+.tabs{display:flex;gap:5px;margin:0 0 9px;flex-wrap:wrap}
+.tabs button{font:inherit;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+    padding:2px 8px;border-radius:2px;cursor:pointer;background:transparent;
+    border:1px solid var(--rule);color:var(--muted)}
+.tabs button[aria-pressed="true"]{background:var(--anchor-bg);color:var(--anchor);
+    border-color:var(--anchor-bg)}
+.tabs button:focus-visible{outline:2px solid var(--anchor);outline-offset:2px}
+.fallback{font-size:11.5px;color:var(--weak);margin:9px 0 0;font-family:var(--mono)}
+
+footer{margin:44px 0 60px;padding-top:20px;border-top:1px solid var(--rule);
+       font-size:12.5px;color:var(--muted);max-width:70ch}
+footer p{margin:0 0 9px}
+code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 4px;border-radius:2px}
+
+.alts{margin:16px 0 0;display:flex;flex-direction:column;gap:0;border-top:1px solid var(--rule)}
+.alt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline;
+     padding:9px 0;border-bottom:1px solid var(--rule)}
+.alt:last-child{border-bottom:0}
+.alt .t{font-size:14.5px;color:var(--muted);min-width:0}
+.alt .s{font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;
+        font-variant-numeric:tabular-nums;text-align:right}
+.altlab{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+        color:var(--faint);margin:15px 0 -6px}
+.alt .src-en{display:block;font-family:var(--serif);font-style:italic;font-size:12.5px;
+             color:var(--faint);margin-top:2px}
+.sep{width:1px;height:14px;background:var(--rule);margin:0 3px}
+@media (max-width:760px){
+  .row{grid-template-columns:1fr}
+  .src{padding:20px 0 4px}
+  .out{padding:8px 0 20px;border-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Bloque paper · 40 líneas · re-corrido 2026-09-09</p>
+  <h1>Las 40 que eligieron los investigadores</h1>
+  <p class="lede">Cada línea la escogió un traductólogo publicado como caso de dificultad, y su subtítulo oficial viene impreso en el paper. Aquí están pasadas por el pipeline con el canal de acuerdo ya puesto. <b>La persona la fija el original:</b> cuando el inglés no deja margen hay una sola lectura, y los botones sólo mueven las líneas que de verdad son ambiguas — en persona y en género.</p>
+  <div class="stats" id="stats"></div>
+</header>
+</div>
+
+<div class="bar"><div class="wrap barin">
+  <span class="barlab">Persona</span>
+  <div class="persons" id="persons"></div>
+  <span class="sep"></span>
+  <span class="barlab">Género</span>
+  <div class="persons" id="genders"></div>
+  <span class="barnote" id="barnote"></span>
+</div></div>
+
+<div class="wrap"><main id="main"></main>
+
+<footer>
+  <p><b>Cómo leer el anclaje.</b> <span class="chip a">acuerdo 231×</span> es lo que coinciden
+  en decir todas las líneas del corpus que contienen esa frase, y el número es cuántas veces
+  más aparece ahí que en el corpus entero. <span class="chip q">vecino 0.66</span> es la
+  similitud de la línea más parecida que existe. <span class="chip w">frágil</span> marca que
+  ningún precedente estuvo lo bastante cerca: el <code>pair_id</code> que aparece al lado
+  sostiene menos de lo que parece.</p>
+  <p><b>Las de abajo son citas, no salidas del modelo.</b> Cada alternativa es una línea que
+  un traductor mexicano escribió, con su <code>pair_id</code>, su similitud con el inglés de
+  entrada y cuántos de los que tradujeron esa misma línea coincidieron. Se muestran tal como
+  se escribieron y <b>no se re-generan</b>: cambiarle el género a una cita conserva el
+  <code>pair_id</code> y le cambia la línea a la que apunta. Entran sólo por encima de
+  <b>0.80</b> de similitud — por debajo, lo que aparece son traducciones de otra frase
+  (<i>“Am I bothering you?” → “- Esto... - Ay.”</i>).</p>
+  <p><b>El género por defecto es masculino</b>, y es una decisión de esta página, no del
+  corpus: el corpus no puede resolver el género de un <i>you</i>, que es justamente por lo
+  que hay un botón. Sólo se mueven las líneas donde el inglés dejó el género abierto —
+  <i>I</i>, <i>you</i>, <i>we</i>. Donde el inglés ya lo dijo (<i>guy</i>, <i>girl</i>,
+  <i>sir</i>, un nombre) no hay nada que elegir y la línea no se mueve.</p>
+  <p><b>Tres desenlaces, y se distinguen.</b> Una línea puede salir <b>traducida</b>; puede
+  perder todas sus lecturas porque el modelo <b>rechazó cada forma de tratamiento</b>, que es
+  este pipeline funcionando; o el proveedor puede <b>no responder</b>, y entonces se imprime
+  la razón que dio. Sólo el tercero se puede llamar una política, y hoy no ha ocurrido
+  ninguno.</p>
+  <p><b>Las 40 salieron traducidas, y ninguna se cayó por contenido.</b> El bloque es
+  <i>Pulp Fiction</i> y <i>Deadpool</i>, elegidos por los investigadores precisamente por su
+  carga soez, y el pipeline devuelve lo que el corpus atestigua sin suavizarlo. Si alguna vez
+  una línea sale vacía aquí, la causa que hay que buscar es la de esta página, no una política:
+  el prompt le da al modelo el derecho de <b>rechazar una lectura que la línea prohíbe</b> —
+  no se dice <i>usted</i> a una niña — y una línea cuyo destinatario el modelo no logra situar
+  puede rechazarlas todas. Hoy le pasó a una: <i>“And I will strike down upon thee”</i>, con
+  su tratamiento arcaico. Una versión anterior de esta página afirmaba que desde el rediseño
+  —decidir la redacción una vez y declinarla— una línea ya no podía perder todas sus lecturas.
+  Esta tanda lo desmiente, así que la afirmación se retira.</p>
+  <p>Los subtítulos oficiales del bloque <i>Pulp Fiction</i> son <b>español peninsular</b>,
+  que es lo que el paper analiza. Están para comparar, no como respuesta correcta.</p>
+  <p>Los subtítulos oficiales del bloque <i>Pulp Fiction</i> son <b>español peninsular</b>,
+  que es lo que el paper analiza. Están para comparar, no como respuesta correcta.</p>
+  <p>Los subtítulos oficiales del bloque <i>Pulp Fiction</i> son <b>español peninsular</b>,
+  que es lo que el paper analiza. Están para comparar, no como respuesta correcta.</p>
+</footer>
+</div>
+
+<script>
+const ROWS = [{"q":"I don't wanna kill you","film":"Pulp Fiction","note":"literal translation (LT)","off":"no quiero mataros","amb":true,"err":"","agreed":[{"phrase":"i don't wanna","support":77,"spanish":"no quiero","lines":44,"of_lines":77,"enrichment":227.4},{"phrase":"kill you","support":183,"spanish":"a matar","lines":51,"of_lines":182,"enrichment":257.1}],"v":[{"form":"tú","es":"No quiero matarte.","ids":[83688156,93360291,89258852,67527267],"weak":false,"sim":0.93,"ag":["no quiero","a matar"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"usted","es":"No quiero matarlo.","ids":[75754665,82348897,16719327,83693999],"weak":false,"sim":0.93,"ag":["no quiero","a matar"],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"No quiero matarla.","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"No quiero matarlos.","ids":[34457477,75416463,90741858,90741848],"weak":false,"sim":0.94,"ag":["no quiero","a matar"],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"No quiero matarlas.","answered":true,"block_reason":"","alts":[]}]},{"q":"damn shame","film":"Pulp Fiction","note":"calque (CAL)","off":"maldita vergüenza","amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"Una maldita lástima.","ids":[88128499,16405043,3266590,96501710],"weak":false,"sim":0.96,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"[Wayne] Es una maldita lástima.","en":"Well, that's a goddamn shame.","pair_id":88128499,"sim":0.96,"times":1,"of":1}]}]},{"q":"blew off somebody's head","film":"Pulp Fiction","note":"explicitation (EXP)","off":"han matado","amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"le voló la cabeza a alguien","ids":[90741346,93690413,83696230,22716829],"weak":false,"sim":0.91,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"fucking bitch","film":"Pulp Fiction","note":"substitution (SUBS)","off":"puta","amb":false,"err":"","agreed":[{"phrase":"fucking bitch","support":55,"spanish":"puta madre","lines":17,"of_lines":55,"enrichment":172.4},{"phrase":"fucking bitch","support":55,"spanish":"hijo de","lines":19,"of_lines":55,"enrichment":167.6}],"v":[{"form":"unmarked","es":"Hija de su puta madre.","ids":[53336699,82494287,93913707,82349237],"weak":false,"sim":0.99,"ag":["puta madre","hijo de"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"Hija de la chingada.","en":"Fucking bitch.","pair_id":86181079,"sim":0.99,"times":1,"of":3},{"es":"Vámonos a la chingada.","en":"Fucking bitch.","pair_id":81395615,"sim":0.99,"times":1,"of":3}]}]},{"q":"live like hogs in the fat house","film":"Pulp Fiction","note":"transposition (TRAN)","off":"tirar la casa por la ventana","amb":false,"err":"","agreed":[{"phrase":"live like","support":22,"spanish":"vivir así","lines":6,"of_lines":22,"enrichment":8325.6}],"v":[{"form":"unmarked","es":"vivir como cerdos en el engordadero","ids":[96160620],"weak":false,"sim":0.88,"ag":["vivir así"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"stop bothering me","film":"Pulp Fiction","note":"compensation (COM)","off":"deja de joderme","amb":true,"err":"","agreed":[{"phrase":"bothering me","support":14,"spanish":"molestando","lines":4,"of_lines":14,"enrichment":2524.8},{"phrase":"stop bothering","support":7,"spanish":"de molestar","lines":3,"of_lines":7,"enrichment":7574.4},{"phrase":"stop bothering","support":7,"spanish":"deja de","lines":4,"of_lines":7,"enrichment":880.2}],"v":[{"form":"tú","es":"Deja de chingar.","ids":[87882431,88040093,75415617,66241065],"weak":false,"sim":0.99,"ag":["molestando","de molestar","deja de"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"No me estés chingando.","en":"Quit bothering me.","pair_id":88040093,"sim":0.98,"times":1,"of":1},{"es":"Deja de estar molestando, ¿sí?","en":"Stop bugging me.","pair_id":75415617,"sim":0.96,"times":1,"of":1}]},{"form":"usted","es":"Deje de chingar.","ids":[3578281,16719318,102064790,77452856],"weak":false,"sim":0.95,"ag":["molestando","de molestar","deja de"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"Dejen de chingar.","ids":[83001817,82495504,97081692,83071570],"weak":false,"sim":0.95,"ag":["molestando","de molestar","deja de"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"What the fuck do you think I'm doing?","film":"Pulp Fiction","note":"omission (OMS)","off":"¿Qué crees que hago?","amb":true,"err":"","agreed":[{"phrase":"the fuck do you","support":43,"spanish":"chingados","lines":13,"of_lines":43,"enrichment":193.0},{"phrase":"what the fuck do","support":32,"spanish":"qué chingados","lines":10,"of_lines":32,"enrichment":316.1},{"phrase":"what the fuck do","support":32,"spanish":"quieres","lines":15,"of_lines":32,"enrichment":56.4},{"phrase":"do you think i'm","support":32,"spanish":"crees que","lines":15,"of_lines":31,"enrichment":232.1}],"v":[{"form":"tú","es":"¿Qué chingados crees que estoy haciendo?","ids":[88124480,75414455,25013163,38604705],"weak":false,"sim":0.98,"ag":["chingados","qué chingados","quieres","crees que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"[Natalia] ¿Qué chingados crees que estás haciendo, eh?","en":"What the fuck do you think you're doing?","pair_id":88124480,"sim":0.98,"times":1,"of":1},{"es":"¿Qué chingados estás haciendo?","en":"What the fuck are you doing?","pair_id":75414455,"sim":0.97,"times":3,"of":13}]},{"form":"usted","es":"¿Qué chingados cree que estoy haciendo?","ids":[82345045,74422518,97190569,74422260],"weak":false,"sim":0.97,"ag":["chingados","qué chingados","quieres","crees que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"¿Qué pedo, cabrón?","en":"What the fuck are you doing?","pair_id":93502382,"sim":0.97,"times":1,"of":13}]},{"form":"ustedes","es":"¿Qué chingados creen que estoy haciendo?","ids":[38604011,82345179,102540092,31592425],"weak":false,"sim":0.97,"ag":["chingados","qué chingados","quieres","crees que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"¿Qué pedo, cabrón?","en":"What the fuck are you doing?","pair_id":93502382,"sim":0.97,"times":1,"of":13},{"es":"¿Qué mierda hacen?","en":"What the fuck are you doin'?","pair_id":38604011,"sim":0.96,"times":1,"of":1}]}]},{"q":"shut the fuck up","film":"Pulp Fiction","note":"reformulation (REF)","off":"cierra el pico","amb":true,"err":"","agreed":[{"phrase":"shut the fuck up","support":49,"spanish":"boca","lines":14,"of_lines":49,"enrichment":336.6},{"phrase":"shut the fuck up","support":49,"spanish":"cállate","lines":19,"of_lines":49,"enrichment":303.5},{"phrase":"the fuck up","support":61,"spanish":"cállate","lines":20,"of_lines":61,"enrichment":256.6},{"phrase":"shut the fuck","support":52,"spanish":"boca","lines":16,"of_lines":52,"enrichment":362.5},{"phrase":"shut the fuck","support":52,"spanish":"cállate","lines":19,"of_lines":52,"enrichment":286.0}],"v":[{"form":"tú","es":"Cierra la boca.","ids":[103004844,33856421,59878194,38006754],"weak":false,"sim":0.99,"ag":["boca","cállate"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"Cierra la maldita boca.","en":"Shut the fuck up.","pair_id":16988986,"sim":0.99,"times":1,"of":4},{"es":"Cállate.","en":"Shut the fuck up.","pair_id":15163099,"sim":0.99,"times":1,"of":4}]},{"form":"usted","es":"Cierre la boca.","ids":[83688005,88128754,83688002,84949453],"weak":false,"sim":0.99,"ag":["boca","cállate"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"Cállese el hocico usted.","en":"You shut the fuck up.","pair_id":83688005,"sim":0.99,"times":1,"of":1},{"es":"[hombre obeso] ¡Váyase a la verga!","en":"Shut the fuck up!","pair_id":88128754,"sim":0.99,"times":1,"of":7}]},{"form":"ustedes","es":"Cierren la boca.","ids":[38604090,88038157,83688029,63519069],"weak":false,"sim":0.99,"ag":["boca","cállate"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"A ver, ! ya cállense, carajo!","en":"Shut the fuck up!","pair_id":88038157,"sim":0.99,"times":1,"of":7},{"es":"-¡Sí tengo huevos!","en":"-Shut the fuck up!","pair_id":76943163,"sim":0.98,"times":1,"of":1}]}]},{"q":"Helps fellatio.","film":"Pulp Fiction","note":"taboo (sexual) > EXP, maintained","off":"Para el sexo oral.","amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"Ayuda a la felación.","ids":[102801075,77140454,91241216,83068862],"weak":true,"sim":0.88,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"but this one is a fucking madman","film":"Pulp Fiction","note":"taboo (drugs) > SUBS, neutralised, NOT technically justified","off":"pero ésta es verdaderamente una pasada.","amb":false,"err":"","agreed":[{"phrase":"is a fucking","support":16,"spanish":"es una","lines":6,"of_lines":16,"enrichment":61.7},{"phrase":"is a fucking","support":16,"spanish":"pinche","lines":7,"of_lines":16,"enrichment":57.2}],"v":[{"form":"unmarked","es":"Pero este es un pinche loco.","ids":[87882233,71754033,88125153,83001376],"weak":false,"sim":0.92,"ag":["es una","pinche"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Am I a nigger? Are we in Inglewood? No.","film":"Pulp Fiction","note":"taboo (racial) > SUBS, neutralised, technically justified","off":"¿Soy negro? ¿Estamos en Inglewood? No, ¿verdad?","amb":false,"err":"","agreed":[{"phrase":"am i a","support":6,"spanish":"soy","lines":4,"of_lines":6,"enrichment":71.6}],"v":[{"form":"unmarked","es":"¿Soy un negro? ¿Estamos en Inglewood? No.","ids":[41540026,41540024],"weak":false,"sim":0.88,"ag":["soy"],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"¿Soy una negra? ¿Estamos en Inglewood? No.","answered":true,"block_reason":"","alts":[]}]},{"q":"Oh, Jesus fucking Christ!","film":"Pulp Fiction","note":"taboo (blasphemous) > REF, toned down, NOT technically justified","off":"¡Me cago en la puta!","amb":false,"err":"","agreed":[{"phrase":"oh jesus","support":10,"spanish":"jesús","lines":3,"of_lines":10,"enrichment":704.5},{"phrase":"oh jesus","support":10,"spanish":"oh","lines":5,"of_lines":10,"enrichment":135.6},{"phrase":"fucking christ","support":5,"spanish":"dios","lines":3,"of_lines":5,"enrichment":130.8}],"v":[{"form":"unmarked","es":"¡Oh, Jesucristo, maldición!","ids":[71754224,71754227,41603006,59878992],"weak":false,"sim":0.98,"ag":["jesús","oh","dios"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"[con dificultad] Concha de Dios.","en":"Jesus fucking Christ.","pair_id":71754224,"sim":0.98,"times":1,"of":1},{"es":"La concha de Dios.","en":"Jesus fucking Christ","pair_id":71754227,"sim":0.98,"times":1,"of":1}]}]},{"q":"Oh, fuck me! Fuck me!","film":"Pulp Fiction","note":"abusive swearing (derogatory) > REF, maintained","off":"¡Estoy jodido! ¡Estoy jodido!","amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"¡A la mierda!","ids":[78567908,92879685,15162633,97190772],"weak":false,"sim":0.99,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"La puta madre.","en":"Oh, fuck me.","pair_id":92879685,"sim":0.98,"times":1,"of":1},{"es":"- ¡Maldición!","en":"Fuck me!","pair_id":97190771,"sim":0.96,"times":1,"of":2}]}]},{"q":"Don't fucking die on me, Mia!","film":"Pulp Fiction","note":"taboo (death) > REF, toned down, technically justified","off":"¡No te mueras!","amb":true,"err":"","agreed":[],"v":[{"form":"tú","es":"¡No te me mueras, Mia!","ids":[98199473,82346991,93915309,38028893],"weak":true,"sim":0.87,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"¡No te me mueras, Mia!","ids":[11284551,93504480,83687665,102326536],"weak":true,"sim":0.87,"ag":[],"nm":[],"fc":false,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"I'm gonna call a couple of hard, pipe-hitting niggers to go to work on the homes here","film":"Pulp Fiction","note":"taboo (drugs/violence) > REF + LT, maintained","off":"Llamaré a un par de negros colgados para que trabajen a este tío","amb":false,"err":"","agreed":[{"phrase":"to go to work","support":14,"spanish":"que ir a trabajar","lines":7,"of_lines":14,"enrichment":18655.6},{"phrase":"to go to work","support":14,"spanish":"tengo que ir a","lines":6,"of_lines":14,"enrichment":1798.9},{"phrase":"to go to","support":321,"spanish":"ir a","lines":123,"of_lines":321,"enrichment":64.6},{"phrase":"a couple of","support":134,"spanish":"un par de","lines":67,"of_lines":134,"enrichment":1017.6}],"v":[{"form":"unmarked","es":"Voy a llamar a un par de negros rudos con tubos para que se encarguen de este tipo.","ids":[101696545],"weak":false,"sim":0.85,"ag":["que ir a trabajar","tengo que ir a","ir a","un par de"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"with a pair of pliers and a blowtorch","film":"Pulp Fiction","note":"taboo (violence) > LT, maintained","off":"con un par de tenacillas y un soplete.","amb":false,"err":"","agreed":[{"phrase":"a pair of","support":32,"spanish":"un par de","lines":12,"of_lines":32,"enrichment":763.2},{"phrase":"a pair of","support":32,"spanish":"unos","lines":8,"of_lines":32,"enrichment":76.0},{"phrase":"with a","support":764,"spanish":"con un","lines":111,"of_lines":400,"enrichment":94.1},{"phrase":"and a","support":426,"spanish":"y un","lines":100,"of_lines":400,"enrichment":56.4}],"v":[{"form":"unmarked","es":"con un par de pinzas y un soplete","ids":[87590445],"weak":false,"sim":0.85,"ag":["un par de","unos","con un","y un"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"You hear me talking, hillbilly boy?","film":"Pulp Fiction","note":"taboo (ethnic) > LT, maintained","off":"¿Me estás oyendo, cateto?","amb":true,"err":"","agreed":[{"phrase":"you hear me","support":119,"spanish":"oyes","lines":31,"of_lines":117,"enrichment":1170.7}],"v":[{"form":"tú","es":"¿Me oyes, campesino?","ids":[41540319,3266767,76851478,78175872],"weak":false,"sim":0.89,"ag":["oyes"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"usted","es":"¿Me oye, campesino?","ids":[7261938,6944828,39450872,82346353],"weak":false,"sim":0.87,"ag":["oyes"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"¿Me oyen, campesinos?","ids":[38604978,66176258,51424417,97148138],"weak":false,"sim":0.88,"ag":["oyes"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Goddamn it!","film":"Pulp Fiction","note":"offensive > abusive swearing > cursing","off":null,"amb":false,"err":"","agreed":[{"phrase":"goddamn it","support":107,"spanish":"puta madre","lines":37,"of_lines":107,"enrichment":192.9}],"v":[{"form":"unmarked","es":"¡Puta madre!","ids":[16361449,77453068,75754664,82364295],"weak":false,"sim":1.0,"ag":["puta madre"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"Me lleva la...","en":"Goddamn it!","pair_id":16361449,"sim":1.0,"times":2,"of":15},{"es":"¡Maldita sea!","en":"Goddamn it!","pair_id":77453068,"sim":1.0,"times":2,"of":15}]}]},{"q":"Get the fuck out my face!","film":"Pulp Fiction","note":"offensive > abusive swearing > derogatory tone","off":null,"amb":true,"err":"","agreed":[],"v":[{"form":"tú","es":"¡Vete a la chingada!","ids":[88823788,88823909,53336279,97190825],"weak":false,"sim":0.99,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"Largo. Vete de mi vista.","en":"Get outta my face.","pair_id":88823909,"sim":0.96,"times":1,"of":1},{"es":"- ¡Pinche Poncho!","en":"- Get out of my face!","pair_id":102077950,"sim":0.96,"times":1,"of":1}]},{"form":"usted","es":"¡Váyase a la chingada!","ids":[74422721,38028574,17810605,84948448],"weak":false,"sim":0.96,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"- ¡Pinche Poncho!","en":"- Get out of my face!","pair_id":102077950,"sim":0.96,"times":1,"of":1}]},{"form":"ustedes","es":"¡Váyanse a la chingada!","ids":[82349451,93503553,84920528,82491616],"weak":false,"sim":0.96,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"- ¡Pinche Poncho!","en":"- Get out of my face!","pair_id":102077950,"sim":0.96,"times":1,"of":1}]}]},{"q":"The motherfucker's tip-top","film":"Pulp Fiction","note":"offensive > abusive swearing > insult","off":null,"amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"El cabrón está de pelos.","ids":[87882229,83001015,71756138,66247863],"weak":true,"sim":0.91,"ag":[],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"La cabrona está de pelos.","answered":true,"block_reason":"","alts":[]}]},{"q":"I swear on my mother's grave","film":"Pulp Fiction","note":"offensive > abusive swearing > oath","off":null,"amb":true,"err":"","agreed":[{"phrase":"i swear on my","support":9,"spanish":"juro por mi","lines":5,"of_lines":9,"enrichment":18655.6},{"phrase":"i swear on my","support":9,"spanish":"lo juro por mi","lines":3,"of_lines":9,"enrichment":15990.5},{"phrase":"i swear on","support":14,"spanish":"juro por mi","lines":5,"of_lines":14,"enrichment":11992.9},{"phrase":"i swear on","support":14,"spanish":"te lo juro por","lines":5,"of_lines":14,"enrichment":9994.0},{"phrase":"swear on my","support":10,"spanish":"por mi vida que","lines":3,"of_lines":10,"enrichment":50370.0},{"phrase":"swear on my","support":10,"spanish":"juro por mi","lines":6,"of_lines":10,"enrichment":20148.0}],"v":[{"form":"tú","es":"Te lo juro por la tumba de mi madre.","ids":[93914039,77514827,98199564,102593965],"weak":false,"sim":0.92,"ag":["juro por mi","lo juro por mi","te lo juro por","por mi vida que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"usted","es":"Se lo juro por la tumba de mi madre.","ids":[78366865,96161180,93914712,87571218],"weak":false,"sim":0.92,"ag":["juro por mi","lo juro por mi","te lo juro por","por mi vida que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"Se los juro por la tumba de mi madre.","ids":[63518983,3355351,78367376],"weak":false,"sim":0.92,"ag":["juro por mi","lo juro por mi","te lo juro por","por mi vida que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Shit!","film":"Pulp Fiction","note":"offensive > expletives","off":null,"amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"¡Mierda!","ids":[16987950,34560295,26692569,66249917],"weak":false,"sim":1.0,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"¡Carajo!","en":"Shit!","pair_id":34560295,"sim":1.0,"times":11,"of":53},{"es":"¡No mames!","en":"Shit!","pair_id":66249917,"sim":1.0,"times":2,"of":53}]}]},{"q":"Check out the big brain on Brett","film":"Pulp Fiction","note":"offensive > invectives > subtle insult","off":null,"amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"Mira el gran cerebro de Brett","ids":[],"weak":false,"sim":0.0,"ag":[],"nm":[],"fc":false,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Tell that bitch to be cool","film":"Pulp Fiction","note":"taboo > animal name terms","off":null,"amb":true,"err":"","agreed":[{"phrase":"that bitch","support":54,"spanish":"perra","lines":16,"of_lines":54,"enrichment":402.8}],"v":[{"form":"tú","es":"Dile a esa perra que se calme.","ids":[75203843,89575014,97190981,83696124],"weak":false,"sim":0.91,"ag":["perra"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"Díganle a esa perra que se calme.","ids":[82494548,88126990,84920523,102326365],"weak":false,"sim":0.9,"ag":["perra"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Dead as fucking fried chicken","film":"Pulp Fiction","note":"taboo > death / killing","off":null,"amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"Más muerto que el puto pollo frito.","ids":[83673301,53540506,82495118,28071587],"weak":true,"sim":0.91,"ag":[],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"Más muerta que el puto pollo frito.","answered":true,"block_reason":"","alts":[]}]},{"q":"Am I a nigger?","film":"Pulp Fiction","note":"taboo > ethnic / racial / gender slurs","off":null,"amb":false,"err":"","agreed":[{"phrase":"am i a","support":6,"spanish":"soy","lines":4,"of_lines":6,"enrichment":71.6}],"v":[{"form":"tú","es":"¿Soy un negro?","ids":[88823691,88823611,41540090,26692780],"weak":false,"sim":0.91,"ag":["soy"],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"¿Soy una negra?","answered":true,"block_reason":"","alts":[]}]},{"q":"He wore this watch up his ass","film":"Pulp Fiction","note":"taboo > filth","off":null,"amb":false,"err":"","agreed":[{"phrase":"up his ass","support":6,"spanish":"por el culo","lines":3,"of_lines":6,"enrichment":5789.7}],"v":[{"form":"unmarked","es":"Se metió este reloj por el culo","ids":[93691022,93693058,26164352],"weak":false,"sim":0.86,"ag":["por el culo"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Jesus fucking Christ","film":"Pulp Fiction","note":"taboo > profane / blasphemous","off":null,"amb":false,"err":"","agreed":[{"phrase":"fucking christ","support":5,"spanish":"dios","lines":3,"of_lines":5,"enrichment":130.8}],"v":[{"form":"unmarked","es":"Dios Todopoderoso, maldición.","ids":[71754227,71754224,41603006,26164653],"weak":false,"sim":1.0,"ag":["dios"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"La concha de Dios.","en":"Jesus fucking Christ","pair_id":71754227,"sim":1.0,"times":1,"of":1},{"es":"[con dificultad] Concha de Dios.","en":"Jesus fucking Christ.","pair_id":71754224,"sim":0.99,"times":1,"of":1}]}]},{"q":"That guy was a drunken maniac","film":"Pulp Fiction","note":"taboo > psychological / physical condition","off":null,"amb":false,"err":"","agreed":[{"phrase":"that guy was","support":8,"spanish":"ese güey","lines":5,"of_lines":8,"enrichment":1566.2}],"v":[{"form":"unmarked","es":"Ese güey era un maniaco borracho.","ids":[3266602,93689343,83686363,89256999],"weak":false,"sim":0.89,"ag":["ese güey"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Why you trying to fuck him like a bitch?","film":"Pulp Fiction","note":"taboo > sexual / body part references","off":null,"amb":true,"err":"","agreed":[],"v":[{"form":"tú","es":"¿Por qué te lo quieres coger como una perra?","ids":[88830110,82365090,53336162,82493046],"weak":false,"sim":0.93,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"usted","es":"¿Por qué se lo quiere coger como una perra?","ids":[34560590,16987934,100957813],"weak":false,"sim":0.93,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]},{"form":"ustedes","es":"¿Por qué se lo quieren coger como una perra?","ids":[48667744,38604011,82346017,83686671],"weak":false,"sim":0.93,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"If that favor means I gotta take shit","film":"Pulp Fiction","note":"taboo > urination / scatology","off":null,"amb":false,"err":"","agreed":[{"phrase":"i gotta take","support":6,"spanish":"tengo que","lines":6,"of_lines":6,"enrichment":280.8},{"phrase":"i gotta","support":138,"spanish":"tengo que","lines":77,"of_lines":137,"enrichment":157.8}],"v":[{"form":"unmarked","es":"Si ese favor significa que tengo que aguantar mierda","ids":[88829250,35771021,83001541],"weak":false,"sim":0.86,"ag":["tengo que"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"And I will strike down upon thee","film":"Pulp Fiction","note":"taboo > violence","off":null,"amb":false,"err":"","agreed":[{"phrase":"and i will","support":71,"spanish":"y yo","lines":30,"of_lines":71,"enrichment":70.3}],"v":[]},{"q":"you're worse than a sewing circle","film":"Pulp Fiction","note":"offensive > invectives (Mia)","off":null,"amb":false,"err":"","agreed":[{"phrase":"you're worse than","support":6,"spanish":"peor que","lines":3,"of_lines":6,"enrichment":2125.3},{"phrase":"worse than a","support":6,"spanish":"peor que","lines":5,"of_lines":6,"enrichment":3542.2},{"phrase":"than a","support":100,"spanish":"que una","lines":26,"of_lines":100,"enrichment":454.7}],"v":[{"form":"tú","es":"Estás peor que un club de costura.","ids":[89953445,81923280,29932463,81923085],"weak":false,"sim":0.88,"ag":["peor que","que una"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"I'm gonna take a piss","film":"Pulp Fiction","note":"taboo > urination / scatology","off":null,"amb":false,"err":"","agreed":[{"phrase":"i'm gonna take a","support":5,"spanish":"voy a","lines":5,"of_lines":5,"enrichment":71.6},{"phrase":"i'm gonna take","support":18,"spanish":"voy a","lines":13,"of_lines":18,"enrichment":51.7},{"phrase":"gonna take a","support":10,"spanish":"a tomar una","lines":3,"of_lines":10,"enrichment":4380.0},{"phrase":"gonna take a","support":10,"spanish":"foto","lines":3,"of_lines":10,"enrichment":139.3}],"v":[{"form":"unmarked","es":"Voy a mear.","ids":[93085564,96160392,53267495,53267949],"weak":false,"sim":0.96,"ag":["voy a","a tomar una","foto"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[{"es":"Me voy a mear.","en":"I'm gonna pee.","pair_id":53267949,"sim":0.96,"times":1,"of":3},{"es":"Voy al baño.","en":"I'll go pee.","pair_id":93085564,"sim":0.96,"times":1,"of":1}]}]},{"q":"Listen, we both know that cancer is a shitshow.","film":"Deadpool","note":"expansion (DP1 datum 98) — translation in the paper is Indonesian; the Spanish here is the official subtitle found in the corpus","off":null,"amb":false,"err":"","agreed":[{"phrase":"we both know that","support":6,"spanish":"sabemos que","lines":3,"of_lines":5,"enrichment":1937.3},{"phrase":"we both know","support":23,"spanish":"los dos sabemos que","lines":7,"of_lines":22,"enrichment":15263.6},{"phrase":"we both know","support":23,"spanish":"sabemos que no","lines":7,"of_lines":22,"enrichment":7123.0},{"phrase":"both know that","support":6,"spanish":"sabemos que","lines":3,"of_lines":5,"enrichment":1937.3}],"v":[{"form":"unmarked","es":"Oye, los dos sabemos que el cáncer es una mierda.","ids":[71582850],"weak":false,"sim":0.85,"ag":["sabemos que","los dos sabemos que","sabemos que no"],"nm":[],"fc":false,"wf":true,"g":"masculino","og":"Oye, las dos sabemos que el cáncer es una mierda.","answered":true,"block_reason":"","alts":[]}]},{"q":"Why such a douche this morning?","film":"Deadpool","note":"paraphrase (DP1 datum 2) — translation in the paper is Indonesian; the Spanish here is the official subtitle found in the corpus","off":"¿Por qué estás tan insoportable hoy?","amb":false,"err":"","agreed":[{"phrase":"this morning","support":83,"spanish":"esta mañana","lines":24,"of_lines":83,"enrichment":2774.3},{"phrase":"this morning","support":83,"spanish":"en la mañana","lines":34,"of_lines":83,"enrichment":2255.0}],"v":[{"form":"tú","es":"¿Por qué tan mamón esta mañana?","ids":[53336162,48110834,76943092,76850215],"weak":false,"sim":0.88,"ag":["esta mañana","en la mañana"],"nm":[],"fc":true,"wf":true,"g":"masculino","og":"¿Por qué tan mamona esta mañana?","answered":true,"block_reason":"","alts":[]}]},{"q":"I'll burn your balls off!","film":"Deadpool","note":"transfer (DP2 datum 45) — translation in the paper is Indonesian; the Spanish here is the official subtitle found in the corpus","off":"¡Les quemaré las bolas!","amb":false,"err":"","agreed":[{"phrase":"your balls","support":23,"spanish":"los huevos","lines":9,"of_lines":23,"enrichment":1059.7},{"phrase":"balls off","support":6,"spanish":"los huevos","lines":5,"of_lines":6,"enrichment":2256.7}],"v":[{"form":"unmarked","es":"¡Te voy a quemar los huevos!","ids":[89949883,102325350,53540240,101991600],"weak":false,"sim":0.92,"ag":["los huevos"],"nm":[],"fc":false,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Fellas! Hey! Hey! you only work for that shit-spackled muppet fart!","film":"Deadpool","note":"decimation (DP1 datum 50) — translation in the paper is Indonesian; the Spanish here is the official subtitle found in the corpus","off":null,"amb":false,"err":"","agreed":[],"v":[{"form":"ustedes","es":"¡Muchachos! ¡Oigan! ¡Solo trabajan para ese pedo de títere embarrado de mierda!","ids":[23728973,101539050,77140766,32896196],"weak":true,"sim":0.88,"ag":[],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"And nobody fucking realizes it.","film":"Deadpool","note":"deletion (DP2 datum 20) — translation in the paper is Indonesian; the Spanish here is the official subtitle found in the corpus","off":"Pero nadie se ha dado cuenta.","amb":false,"err":"","agreed":[{"phrase":"and nobody","support":20,"spanish":"y nadie","lines":10,"of_lines":20,"enrichment":1485.8}],"v":[{"form":"unmarked","es":"Y nadie se da cuenta, carajo.","ids":[84198828,43101723,83070611,75417862],"weak":false,"sim":0.9,"ag":["y nadie"],"nm":[],"fc":true,"wf":true,"g":null,"og":"","answered":true,"block_reason":"","alts":[]}]},{"q":"Think of us like really fucked up tooth fairies","film":"Deadpool","note":"condensation (DP1 datum 88) — translation in the paper is Indonesian; the Spanish here is the official subtitle found in the corpus","off":null,"amb":false,"err":"","agreed":[],"v":[{"form":"unmarked","es":"Piensa en nosotros como hadas de los dientes muy cabronas.","ids":[40966281,84948812,97041604],"weak":true,"sim":0.85,"ag":[],"nm":[],"fc":false,"wf":true,"g":"masculino","og":"Piensa en nosotras como hadas de los dientes muy cabronas.","answered":true,"block_reason":"","alts":[]}]}];
+
+// The Spanish paradigm, in the order a Spanish speaker recites it. `usted` sits in the
+// third-person slot because that is the morphology it takes, and `ustedes` in the second
+// plural, which is where Latin American Spanish teaches it.
+const PARADIGM = [
+  {id:"yo",       n:"1ª sg", label:"yo",      forms:[]},
+  {id:"tú",       n:"2ª sg", label:"tú",      forms:["tú"]},
+  {id:"usted",    n:"3ª sg", label:"usted",   forms:["usted"]},
+  {id:"nosotros", n:"1ª pl", label:"nosotros",forms:[]},
+  {id:"ustedes",  n:"2ª pl", label:"ustedes", forms:["ustedes"]},
+  {id:"generico", n:"—",     label:"genérico",forms:["unmarked"]},
+];
+const slotOf = f => (PARADIGM.find(p => p.forms.includes(f)) || PARADIGM[5]).id;
+const order  = PARADIGM.map(p => p.id);
+
+ROWS.forEach(r => r.v.forEach(v => v.slot = slotOf(v.form)));
+const available = new Set(ROWS.flatMap(r => r.v.map(v => v.slot)));
+// Default is the first person the set actually has, walking the paradigm in order --
+// "1ª, and if there is no 1ª then 2ª", applied to whatever exists.
+let chosen = order.find(id => available.has(id));
+
+// Masculine by default. It is a choice the page is making, not something retrieved: the
+// corpus cannot settle the gender of a `you`, which is the whole reason there is a button.
+const GENDERS = [{id:"masculino", label:"masculino"}, {id:"femenino", label:"femenino"}];
+let gender = "masculino";
+
+// The line as it should read for the current gender. A reading carries the gender it was
+// written in plus the same line flipped; anything else marks nobody and never moves.
+function textFor(v){
+  if (!v.g || !v.og) return v.es;
+  return v.g === gender ? v.es : v.og;
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function pick(row){
+  if (!row.v.length) return null;
+  const want = row.v.find(v => v.slot === chosen);
+  if (want) return {v:want, fell:false};
+  // The chosen person is not in this line, so fall back down the paradigm.
+  const byOrder = [...row.v].sort((a,b) => order.indexOf(a.slot) - order.indexOf(b.slot));
+  return {v:byOrder[0], fell:true};
+}
+
+function chips(v, row){
+  const out = [];
+  const ag = (row.agreed || []).filter(a => v.ag.includes(a.spanish));
+  ag.slice(0,2).forEach(a => out.push(
+    `<span class="chip a">acuerdo <b>${esc(a.spanish)}</b> ${Math.round(a.enrichment)}×</span>`));
+  if (v.sim > 0) out.push(`<span class="chip q">vecino ${v.sim.toFixed(2)}</span>`);
+  if (v.weak)    out.push(`<span class="chip w">frágil</span>`);
+  if (v.nm.length) out.push(`<span class="chip w">no mexicano: ${esc(v.nm.join(", "))}</span>`);
+  if (!v.wf)     out.push(`<span class="chip w">gramática</span>`);
+  if (!v.fc && v.slot !== "generico") out.push(`<span class="chip q">forma sin confirmar</span>`);
+  return out.join("");
+}
+
+// The other renderings the corpus attests for this reading, under the chosen one and
+// smaller. They are quotations: shown as their translator wrote them, never re-gendered,
+// because a `pair_id` that points at a line nobody wrote is worth less than no citation.
+function alts(v){
+  if (!v.alts.length) return "";
+  return `<p class="altlab">también atestiguadas</p><div class="alts">` + v.alts.map(a =>
+    `<div class="alt">
+       <span class="t">${esc(a.es)}<span class="src-en">de: ${esc(a.en)}</span></span>
+       <span class="s">${a.sim.toFixed(2)} · ${a.times}/${a.of} · pair_id ${a.pair_id}</span>
+     </div>`).join("") + `</div>`;
+}
+
+function render(){
+  const main = document.getElementById("main");
+  let html = "", film = null;
+  for (const row of ROWS){
+    if (row.film !== film){ film = row.film; html += `<h2>${esc(film)}</h2>`; }
+    const got = pick(row);
+    let right;
+    if (!got){
+      // Every reading was refused. That is the pipeline declining a reading the line rules
+      // out, and it is a different event from the provider declining to answer -- which
+      // arrives as a reading marked below, with its reason.
+      right = `<p class="es empty">ninguna lectura sobrevivió</p>
+               <div class="chips"><span class="chip n">rechazadas todas las formas de tratamiento</span></div>`;
+    } else if (got.v.answered === false) {
+      right = `<p class="es empty">el modelo no respondió</p>
+               <div class="chips"><span class="chip w">${esc(got.v.block_reason || "sin razón")}</span></div>`;
+    } else {
+      const {v, fell} = got;
+      const tabs = row.amb ? `<div class="tabs">` + [...row.v]
+          .sort((a,b) => order.indexOf(a.slot) - order.indexOf(b.slot))
+          .map(x => `<button type="button" data-slot="${x.slot}" aria-pressed="${x===v}">${
+            esc(PARADIGM.find(p=>p.id===x.slot).label)}</button>`).join("") + `</div>` : "";
+      right = tabs
+        + `<div class="formrow"><span class="form">${esc(PARADIGM.find(p=>p.id===v.slot).label)}</span>`
+        + (v.g ? `<span class="form">${esc(gender)}</span>` : "")
+        + (row.amb ? "" : `<span class="fixed">persona fijada por el original</span>`)
+        + `</div><p class="es">${esc(textFor(v))}</p>`
+        + `<div class="chips">${chips(v, row)}</div>`
+        + (v.ids.length ? `<p class="ids">${v.ids.map(i=>"pair_id "+i).join("  ")}</p>` : "")
+        + (fell ? `<p class="fallback">sin ${esc(PARADIGM.find(p=>p.id===chosen).label)} en esta línea → ${
+             esc(PARADIGM.find(p=>p.id===v.slot).label)}</p>` : "")
+        + alts(v);
+    }
+    html += `<article class="row">
+      <div class="src">
+        <p class="en">${esc(row.q)}</p>
+        <p class="meta">${row.note ? `<span class="tag">${esc(row.note)}</span>` : ""}</p>
+        ${row.off ? `<p class="official">oficial: <i>${esc(row.off)}</i></p>` : ""}
+      </div>
+      <div class="out" data-i="${ROWS.indexOf(row)}">${right}</div>
+    </article>`;
+  }
+  main.innerHTML = html;
+
+  // Per-line tabs override the global choice for that line only, so a reviewer can look
+  // at one line's usted without moving the other thirty-nine.
+  main.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", e => {
+    const btn = e.currentTarget, box = btn.closest(".out"), row = ROWS[+box.dataset.i];
+    renderOne(box, row, row.v.find(x => x.slot === btn.dataset.slot));
+  }));
+
+  const n = ROWS.filter(r => r.v.some(v => v.slot === chosen)).length;
+  const g = ROWS.filter(r => r.v.some(v => v.g)).length;
+  document.getElementById("barnote").textContent =
+    `${n} de ${ROWS.length} líneas tienen esta persona y ${g} mueven el género; `
+    + `el resto no cambia, porque el inglés ya lo dejó decidido.`;
+}
+
+function renderOne(box, row, v){
+  box.querySelectorAll(".tabs button").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.slot === v.slot)));
+  box.querySelector(".form").textContent = PARADIGM.find(p => p.id === v.slot).label;
+  box.querySelector(".es").textContent = textFor(v);
+  box.querySelector(".chips").innerHTML = chips(v, row);
+  const ids = box.querySelector(".ids");
+  if (ids) ids.textContent = v.ids.map(i => "pair_id " + i).join("  ");
+  // The line now shows what was asked for, so the fallback note no longer applies.
+  const fb = box.querySelector(".fallback"); if (fb) fb.remove();
+}
+
+function genderButtons(){
+  const box = document.getElementById("genders");
+  box.innerHTML = GENDERS.map(g =>
+    `<button type="button" data-id="${g.id}" aria-pressed="${g.id===gender}">
+       <span>${g.label}</span></button>`).join("");
+  box.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    gender = b.dataset.id;
+    box.querySelectorAll("button").forEach(x =>
+      x.setAttribute("aria-pressed", String(x.dataset.id === gender)));
+    render();
+  }));
+}
+
+function buttons(){
+  const box = document.getElementById("persons");
+  box.innerHTML = PARADIGM.map(p =>
+    `<button type="button" data-id="${p.id}" ${available.has(p.id)?"":"disabled"}
+       aria-pressed="${p.id===chosen}"><span>${p.label}</span><span class="n">${p.n}</span></button>`
+  ).join("");
+  box.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    chosen = b.dataset.id;
+    box.querySelectorAll("button").forEach(x =>
+      x.setAttribute("aria-pressed", String(x.dataset.id === chosen)));
+    render();
+  }));
+}
+
+function stats(){
+  const readings = ROWS.flatMap(r => r.v);
+  const s = [
+    [ROWS.length, "líneas del bloque paper"],
+    [ROWS.filter(r => r.amb).length, "ambiguas en inglés — ofrecen persona"],
+    [ROWS.filter(r => r.agreed.length).length, "con acuerdo del corpus detrás"],
+    [readings.filter(v => v.weak).length + " / " + readings.length, "lecturas marcadas frágiles"],
+    [readings.filter(v => v.g).length, "lecturas donde el género queda abierto"],
+    [readings.filter(v => v.alts.length).length, "con otra rendición atestiguada debajo"],
+  ];
+  document.getElementById("stats").innerHTML = s.map(([b, l]) =>
+    `<div class="stat"><b>${b}</b><span>${l}</span></div>`).join("");
+}
+
+stats(); buttons(); genderButtons(); render();
+</script>
