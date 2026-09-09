@@ -355,14 +355,21 @@ def _localise(line: str) -> dict[str, Any]:
     from ..variants import group_by_address
 
     tag_forms = cached_tagger(ask, model=model)
+
+    def timed_phrases():
+        # The number the page reports as ClickHouse Cloud is this channel alone: ten SQL
+        # queries and nothing else. The vector channel beside it embeds and tags with
+        # Gemini, and counting that as the database would flatter the wrong thing.
+        t = time.perf_counter()
+        return gather_phrases(line), time.perf_counter() - t
+
     with ThreadPoolExecutor(max_workers=4) as pool:
-        f_phrases = pool.submit(gather_phrases, line)
+        f_phrases = pool.submit(timed_phrases)
         f_readings = pool.submit(group_by_address, line, tag_forms=tag_forms)
         f_baseline = pool.submit(_baseline, line, ask)
         f_google = pool.submit(_google, line)
-        phrases = f_phrases.result()
+        phrases, corpus_seconds = f_phrases.result()
         readings = f_readings.result()
-        corpus_seconds = time.perf_counter() - started
         variants = translate_variants(line, ask=ask, phrases=phrases, readings=readings,
                                       tag_forms=tag_forms)
         baseline, google = f_baseline.result(), f_google.result()
