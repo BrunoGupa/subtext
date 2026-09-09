@@ -11,7 +11,7 @@ for the vector channel · **Cloud Run** for the site · **ClickHouse Cloud** on 
 corpus, the SQL and the HNSW vector search, reached at runtime through **`mcp-clickhouse`**,
 the official ClickHouse MCP server.
 
-**Live:** _hosted URL goes here before submission_ · **Video:** _YouTube link goes here_
+**Live:** https://subtext-475154074268.us-east1.run.app · **Video:** _YouTube link goes here_
 
 ## Two subtitle tracks, and only one of them exists
 
