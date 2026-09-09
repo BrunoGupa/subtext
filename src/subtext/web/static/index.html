@@ -36,13 +36,14 @@ body{background:var(--ground);color:var(--ink);font-family:var(--sans);line-heig
      -webkit-font-smoothing:antialiased;margin:0}
 .wrap{max-width:760px;margin:0 auto;padding:0 24px}
 
-header{padding:52px 0 26px}
+header{padding:52px 0 8px}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
          color:var(--faint);margin:0 0 12px}
 h1{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.6vw,42px);line-height:1.14;
    margin:0 0 14px;text-wrap:balance;letter-spacing:-.01em}
 h1 em{font-style:italic;color:var(--anchor)}
-.lede{color:var(--muted);margin:0;max-width:60ch;font-size:15.5px}
+.lede{color:var(--muted);margin:0;max-width:62ch;font-size:15.5px}
+.lede b{color:var(--ink);font-weight:500}
 
 form{display:flex;align-items:center;gap:10px;background:var(--surface);
      border:1px solid var(--rule);border-radius:3px;padding:5px 5px 5px 18px;margin:26px 0 0;
@@ -67,12 +68,12 @@ input:focus-visible{outline:none}
    until this line existed. Anything hidden is hidden, whatever else claims otherwise. */
 [hidden]{display:none!important}
 
-.examples{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;align-items:center}
+.examples{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px;align-items:center}
 .examples span{font-size:12.5px;color:var(--faint);margin-right:2px}
 .ex{font:inherit;font-size:13px;background:transparent;color:var(--muted);
-    border:1px solid var(--rule);border-radius:2px;padding:5px 12px;cursor:pointer}
+    border:1px solid var(--rule);border-radius:2px;padding:5px 10px;cursor:pointer}
 .ex:hover{border-color:var(--anchor);color:var(--anchor)}
-.films{margin-top:9px}
+.films{margin-top:8px}
 .film{font:inherit;font-size:13px;font-family:var(--serif);font-style:italic;
       background:transparent;color:var(--muted);border:1px solid var(--rule);
       border-radius:2px;padding:5px 13px;cursor:pointer}
@@ -85,8 +86,7 @@ input:focus-visible{outline:none}
 
 /* The controls only exist once there is something to control, and only for the axes the
    English actually left open -- offering a choice the source already made is noise. */
-.bar{display:none;gap:16px;align-items:baseline;flex-wrap:wrap;margin:30px 0 0;
-     padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.bar{display:none;gap:16px;align-items:baseline;flex-wrap:wrap;margin:18px 0 0}
 .bar.on{display:flex}
 .barlab{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
         color:var(--faint);white-space:nowrap}
@@ -100,14 +100,16 @@ input:focus-visible{outline:none}
 .group button[aria-pressed="true"] .n{color:var(--ground);opacity:.6}
 .fixed{font-size:12.5px;color:var(--faint)}
 
-#out{margin-top:26px}
+#out{margin-top:0}
 #out:empty{margin-top:0}
 .context{padding:6px 0 56px}
-.context .why{margin-top:22px}
+.context .why{margin-top:40px}
+#out:empty + .context .why{margin-top:22px}
 .status{color:var(--muted);font-size:15px;margin:26px 0}
 
-.main{padding:22px 0 0}
-.formrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}
+.main{margin:14px 0 0;padding:16px 20px 18px;background:var(--surface);
+      border:1px solid var(--rule);border-left:3px solid var(--anchor);border-radius:3px}
+.formrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 6px}
 .tag{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:2px 7px;
      border-radius:2px;background:var(--sunk);color:var(--muted)}
 .es{font-family:var(--serif);font-size:clamp(24px,3.6vw,31px);line-height:1.3;margin:0;
@@ -120,11 +122,18 @@ input:focus-visible{outline:none}
 .chip.w{background:var(--weak-bg);color:var(--weak)}
 .chip.n{background:var(--none-bg);color:var(--none)}
 .chip.q{background:var(--sunk);color:var(--muted)}
-.ids{font-family:var(--mono);font-size:11px;color:var(--faint);margin:10px 0 0;
+.ids{font-family:var(--mono);font-size:11px;color:var(--faint);margin:8px 0 0;
      word-spacing:.3em;overflow-wrap:anywhere}
 
 .altlab{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
-        color:var(--faint);margin:26px 0 0}
+        color:var(--faint);margin:22px 0 0}
+details.attested{margin:18px 0 0}
+details.attested summary{font-family:var(--mono);font-size:10px;letter-spacing:.13em;
+        text-transform:uppercase;color:var(--faint);cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center}
+details.attested summary::-webkit-details-marker{display:none}
+details.attested summary::before{content:"▸";font-size:11px}
+details.attested[open] summary::before{content:"▾"}
+details.attested summary:hover{color:var(--anchor)}
 .alts{margin:8px 0 0;border-top:1px solid var(--rule)}
 .alt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:baseline;
      padding:11px 0;border-bottom:1px solid var(--rule)}
@@ -168,8 +177,9 @@ input:focus-visible{outline:none}
 .tbl td.ctl{color:var(--muted)}
 .tbl td.off{color:var(--muted);font-style:italic}
 .tbl .chip{font-size:10px;padding:1px 6px;margin-left:4px;vertical-align:middle}
-.exnote{font-size:12px;color:var(--faint);margin:8px 0 0;max-width:78ch}
-.took{font-family:var(--mono);font-size:11px;color:var(--faint);margin:12px 0 0;
+.nic{font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;
+     margin-left:2px;cursor:help;border-bottom:1px dotted var(--rule)}
+.took{font-family:var(--mono);font-size:11px;color:var(--faint);margin:4px 0 0;
       font-variant-numeric:tabular-nums}
 .took b{color:var(--anchor);font-weight:500}
 .links{display:flex;flex-wrap:wrap;gap:8px 18px;margin:14px 0 0;font-size:13px}
@@ -182,6 +192,14 @@ input:focus-visible{outline:none}
 .stack span.t{border:1px solid var(--rule);border-radius:2px;padding:3px 9px;color:var(--muted);
               background:var(--surface);white-space:nowrap}
 .stack span.t b{color:var(--ink);font-weight:500}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);
+          border:1px solid var(--rule);border-radius:3px;overflow:hidden;margin:8px 0 0}
+@media (max-width:560px){.controls{grid-template-columns:1fr}}
+.ctlcard{background:var(--sunk);padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.ctllab{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.ctles{margin:0;font-family:var(--serif);font-size:17px;line-height:1.35;color:var(--muted)}
+.ctlwho{font-size:11.5px;color:var(--faint);font-style:italic}
+.ctlcard .chips{margin-top:4px}
 footer{border-top:1px solid var(--rule);padding:26px 0 44px;color:var(--muted);font-size:12.5px}
 footer a{color:var(--muted)}
 .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
@@ -209,10 +227,9 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
 <div class="wrap">
 <header>
   <p class="eyebrow">The faithful subtitle track · Mexican Spanish</p>
-  <h1>Type an English line.<br>Get it in Mexican Spanish, <em>the way subtitlers really
-  write it</em>, with proof.</h1>
-  <p class="lede">A new line written for yours, grounded in 335,800 lines Mexican subtitlers
-  wrote, and cited by the line it rests on.</p>
+  <h1>Type an English subtitle line.<br>Get it in Mexican Spanish, <em>with proof</em>.</h1>
+  <p class="lede">A Mexican viewer almost never gets subtitles faithful to what the character
+  said, in their own Spanish.</p>
 
   <form id="f" autocomplete="off">
     <input id="q" name="q" placeholder="Nice jacket." aria-label="English subtitle line" required>
@@ -221,18 +238,15 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   <p class="limit" id="limit" role="status" aria-live="polite" hidden></p>
 
   <div class="examples">
-    <span>Try:</span>
-    <button class="ex" type="button">Come with me if you want to live.</button>
+    <span>Try<sup><a href="#ref3" aria-label="note 3, the examples are not in the corpus">3</a></sup>:</span>
     <button class="ex" type="button">You talking to me?</button>
     <button class="ex" type="button">I like your jacket.</button>
     <button class="ex" type="button">Shut up and drive.</button>
     <button class="ex" type="button">Get out of my car.</button>
   </div>
-  <p class="exnote"><b>None of these lines exists in the corpus.</b> Checked line by line — an
-  exact match would only be a lookup.</p>
 
   <div class="examples films">
-    <span>Or a line the literature calls among the hardest to translate:</span>
+    <span>Hardest, per the literature:</span>
     <button class="film" type="button" data-film="pulp" aria-expanded="false">Pulp Fiction</button><sup><a href="#ref1" aria-label="reference 1, Ávila-Cabrera 2015">1</a></sup>
     <button class="film" type="button" data-film="deadpool" aria-expanded="false">Deadpool</button><sup><a href="#ref2" aria-label="reference 2, Rohmawati 2021">2</a></sup>
   </div>
@@ -262,8 +276,8 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
       <div class="num"><b>7 : 1</b><span>peninsular over Mexican register, corpus-wide</span></div>
       <div class="num"><b>39.6%</b><span>of English lines with <i>fuck</i> lose it in Spanish</span></div>
     </div>
-    <p>A Mexican viewer almost never gets a subtitle, in their own Spanish, that says what the
-    character said. This reuses the few hundred films where somebody wrote one.</p>
+    <p>Why it has to exist. Subtext reuses the few hundred films where somebody wrote that
+    subtitle, and cites them.</p>
   </div>
 
   <section class="show" aria-labelledby="showh">
@@ -324,6 +338,9 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
       <a href="http://dx.doi.org/10.4995/rlyla.2015.3419">10.4995/rlyla.2015.3419</a></li>
     <li id="ref2">Rohmawati, I. (2021). “Subtitling Strategies of Swear Words in Deadpool One &amp;
       Deadpool Two Film.” <i>Indonesian Journal of EFL and Linguistics</i> 6(1): 219–232.</li>
+    <li id="ref3">None of the example lines is in the corpus — checked line by line. An exact
+      match would only hand back a subtitle somebody already wrote; these have to be assembled
+      from precedent.</li>
   </ol>
   <p class="source"><b>line 88388575</b> is a corpus row’s <code>pair_id</code>, stable across
   rebuilds. Corpus: OPUS OpenSubtitles · <a href="http://www.opensubtitles.org/">opensubtitles.org</a>
@@ -469,36 +486,40 @@ function tookFor(){
 // The control. Same model, same line, asked for "Mexican Spanish" with nothing behind it:
 // what a person gets today. No citation, because there is nothing to cite, and its
 // peninsular words are flagged by the same lexicon that gates the readings above.
-function controlRow(c, who){
+// The two controls as two small cards side by side, set apart from the answer: they are
+// what a person gets today, uncited, and a list under the citations read as more answer.
+function controlCard(c, label, who){
   if (!c || !c.spanish) return '';
   const flags = [];
   if ((c.not_mexican || []).length)
     flags.push(`<span class="chip w">not Mexican: ${esc(c.not_mexican.join(', '))}</span>`);
   if ((c.watch || []).length)
     flags.push(`<span class="chip w">Spain's word: ${esc(c.watch.join(', '))}</span>`);
-  return `<div class="alt">
-      <span class="t">${esc(c.spanish)}<span class="src">${who}</span></span>
-      <span class="s">${flags.join(' ') || 'uncited'}</span>
+  return `<div class="ctlcard">
+      <span class="ctllab">${label}</span>
+      <p class="ctles">${esc(c.spanish)}</p>
+      <span class="ctlwho">${who}</span>
+      ${flags.length ? `<div class="chips">${flags.join('')}</div>` : ''}
     </div>`;
 }
 
 function baselineFor(){
-  const rows = controlRow(data.baseline,
-      'Gemini 3.8 Flash asked for “Mexican Spanish”, no evidence, no citation')
-    + controlRow(data.google,
-      'Google Translate, English → Spanish. There is no Mexican Spanish to ask it for');
-  if (!rows) return '';
+  const cards = controlCard(data.baseline, 'Gemini alone',
+      'same model, asked for “Mexican Spanish”, no evidence')
+    + controlCard(data.google, 'Google Translate', 'English → Spanish; no Mexican Spanish to ask for');
+  if (!cards) return '';
   return `<p class="altlab">For comparison — what you get today, uncited</p>
-    <div class="alts">${rows}</div>`;
+    <div class="controls">${cards}</div>`;
 }
 
 function altsFor(r){
   if (!(r.alternatives || []).length) return '';
-  return `<p class="altlab">Also attested</p><div class="alts">` + r.alternatives.map(a =>
+  const n = r.alternatives.length;
+  return `<details class="attested"><summary>Also attested · ${n} other line${n === 1 ? '' : 's'} by Mexican translators</summary><div class="alts">` + r.alternatives.map(a =>
     `<div class="alt">
        <span class="t">${esc(a.spanish)}<span class="src">from: ${esc(a.english)}</span></span>
        <span class="s">${a.similarity.toFixed(2)} · ${a.times}/${a.of} · line ${a.pair_id}</span>
-     </div>`).join('') + `</div>`;
+     </div>`).join('') + `</div></details>`;
 }
 
 function draw(){

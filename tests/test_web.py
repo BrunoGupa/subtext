@@ -33,10 +33,10 @@ def test_the_page_offers_examples_the_corpus_has_never_seen():
     not contain (checked with `SELECT count() FROM mx_corpus WHERE en = ...`, all zero),
     and the page says so beside them."""
     page = client.get("/").text
-    for line in ("Come with me if you want to live.", "You talking to me?",
-                 "I like your jacket.", "Shut up and drive.", "Get out of my car."):
+    for line in ("You talking to me?", "I like your jacket.", "Shut up and drive.",
+                 "Get out of my car."):
         assert line in page
-    assert "None of these lines exists in the corpus" in page
+    assert "None of the example lines is in the corpus" in page
 
 
 def test_the_evaluation_pages_are_served_by_name_only():
