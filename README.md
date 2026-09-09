@@ -1,8 +1,8 @@
-# Subtext — the Spanish a Mexican subtitler actually wrote
+# Subtext — Mexican Spanish the way subtitlers really write it, with proof
 
-*The faithful subtitle track, for Mexican Spanish. Every rendering retrieved from what
-Mexican subtitlers wrote — 103.6 million subtitle pairs in ClickHouse — and citable by the
-line it came from.*
+*The faithful subtitle track, for Mexican Spanish. A new line written for yours, grounded in
+what Mexican subtitlers wrote — 103.6 million subtitle pairs in ClickHouse — and citable by
+the line it rests on.*
 
 **Agentic Cinema: The Blockbuster Hackathon (Google Cloud) — ClickHouse track.** Apache-2.0.
 
