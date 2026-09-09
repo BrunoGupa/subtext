@@ -541,11 +541,18 @@ def _key(text: str) -> str:
 
 
 def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
-                       model: str | None = None) -> list[Variant]:
+                       model: str | None = None, phrases: Sequence | None = None) -> list[Variant]:
     """Every attested reading of `cue`, translated. One model call per reading.
 
     `ask` takes a prompt and returns text, so the caller owns the model configuration and
     this is testable without a key.
+
+    `phrases` is the output of `gather_phrases`, accepted rather than always fetched
+    because a caller that shows the evidence beside the readings needs the same object and
+    would otherwise ask for it twice. It is ten queries -- measured at 4.5 s against
+    ClickHouse Cloud, a sixth of a whole request -- and the web endpoint was paying it
+    twice for one line. Left at None it is fetched here, so the CLI and the tests are
+    unaffected.
 
     Grouping uses the model tagger with its ClickHouse cache, decided by measurement on
     2026-09-07: against the morphological reader it agreed on 65.8% of 585 retrieved lines,
@@ -559,7 +566,8 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
     to the query, so it is paid for once.
     """
     out: list[Variant] = []
-    phrases = gather_phrases(cue)
+    if phrases is None:
+        phrases = gather_phrases(cue)
     # Form-neutral, like the phrase channel it comes from: what `up his ass` agrees on is
     # the same whether the scene is tu or usted.
     # De-duplicated: two phrases of the same cue can agree on the same word, and
