@@ -4,7 +4,7 @@ The pieces, in the order a question moves through them:
 
 * :mod:`subtext.ingest`           — load a corpus into ``lines``
 * :mod:`subtext.chunking`         — chunk it (``line`` or ``window``), a swept parameter
-* :mod:`subtext.embeddings`       — local sentence-transformer vectors
+* :mod:`subtext.embeddings`       — Gemini embedding vectors
 * :mod:`subtext.retrieval`        — vector search, and vector search feeding a GROUP BY
 * :mod:`subtext.schema_retrieval` — the schema slice that grounds text-to-SQL
 * :mod:`subtext.agent`            — the ADK agent that plans, queries and self-validates

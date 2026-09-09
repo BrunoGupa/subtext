@@ -14,7 +14,6 @@ dependencies = [
     "mcp-clickhouse>=0.4.1",
     "pandas>=3.0.5",
     "python-dotenv>=1.2.3",
-    "sentence-transformers>=6.0.0",
 ]
 
 [project.scripts]

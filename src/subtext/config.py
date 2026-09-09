@@ -46,9 +46,7 @@ def settings() -> Settings:
         ch_password=os.getenv("CLICKHOUSE_PASSWORD", ""),
         ch_database=os.getenv("CLICKHOUSE_DATABASE", "subtext"),
         ch_secure=_bool("CLICKHOUSE_SECURE", False),
-        embedding_model=os.getenv(
-            "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
-        ),
-        embedding_dim=int(os.getenv("EMBEDDING_DIM", "384")),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "gemini-embedding-001"),
+        embedding_dim=int(os.getenv("EMBEDDING_DIM", "768")),
         gemini_model=os.getenv("SUBTEXT_MODEL", "gemini-3.8-flash"),
     )

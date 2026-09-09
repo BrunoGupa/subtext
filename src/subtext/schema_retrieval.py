@@ -44,14 +44,14 @@ COLUMN_DOCS: tuple[tuple[str, str, str, str], ...] = (
     ("line_chunks", "character", "String", "Character who speaks the anchor line of the chunk. For window chunks the chunk may span several speakers; join through line_ids when exact attribution matters."),
     ("line_chunks", "start_ms", "UInt32", "Start time of the chunk's anchor line, in milliseconds."),
     ("line_chunks", "text", "String", "The chunk's text as it was embedded: 'CHARACTER: line' for the line strategy, several such lines joined by newlines for the window strategy."),
-    ("line_chunks", "embedding", "Array(Float32)", "Sentence-transformer embedding of the chunk text. Rank semantic matches with cosineDistance(embedding, <query vector>) ASC; smaller distance is more similar."),
+    ("line_chunks", "embedding", "Array(Float32)", "Embedding of the chunk text. Rank semantic matches with cosineDistance(embedding, <query vector>) ASC; smaller distance is more similar."),
     ("schema_docs", "doc_id", "UInt64", "Unique id of a schema documentation entry."),
     ("schema_docs", "table_name", "String", "Table the documented column belongs to."),
     ("schema_docs", "column_name", "String", "Name of the documented column."),
     ("schema_docs", "data_type", "String", "ClickHouse type of the documented column."),
     ("schema_docs", "description", "String", "Natural-language description of what the column means and when to use it."),
     ("schema_docs", "doc_text", "String", "The embedded form of the documentation entry: table, column, type and description in one string."),
-    ("schema_docs", "embedding", "Array(Float32)", "Sentence-transformer embedding of doc_text, used to retrieve the relevant slice of the schema for a question."),
+    ("schema_docs", "embedding", "Array(Float32)", "Embedding of doc_text, used to retrieve the relevant slice of the schema for a question."),
 )
 
 TABLE_NOTES: dict[str, str] = {

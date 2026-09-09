@@ -301,7 +301,8 @@ its numbers will appear here when they exist.
     SQL goes through it, which is what the ClickHouse track requires.
   - **`clickhouse-connect`** for the vector path, which has no choice: the question must be
     embedded in Python before there is a query to send.
-- **sentence-transformers** (MiniLM, local) — embeddings, $0
+- **`gemini-embedding-001`** — 768-dimension vectors for the semantic channel, one per
+  distinct English line, normalised in code as Google requires below 3072 dimensions
 - **Python 3.12 + uv**
 
 ## The corpus

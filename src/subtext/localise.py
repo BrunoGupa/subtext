@@ -331,28 +331,31 @@ def candidate_phrases(cue: str, max_n: int = MAX_N) -> list[str]:
     return out
 
 
-def phrase_consensus(ch, phrase: str, *, keep: int = 2) -> tuple[Consensus, ...]:
+def phrase_consensus(phrase: str, *, keep: int = 2) -> tuple[Consensus, ...]:
     """What the lines containing `phrase` agree their Spanish contains.
 
     Two queries, whatever the phrase: one for the lines, one that measures every candidate
     against the whole corpus at once. The second is the expensive half and batching it is
-    the difference between a lookup and a scan per candidate.
+    the difference between a lookup and a scan per candidate. Both go through the MCP
+    server -- see `rows`.
     """
     from collections import Counter
 
-    rows = ch.query(
-        "SELECT es FROM mx_corpus WHERE {hay} LIKE {{pat:String}} "
-        "ORDER BY pair_id LIMIT {{k:UInt32}}".format(hay=clickhouse_haystack_sql("en")),
-        parameters={"pat": f"% {phrase} %", "k": CONSENSUS_SAMPLE},
-    ).result_rows
-    total_lines = len(rows)
+    from . import mcp_sql
+
+    lines = rows(
+        f"SELECT es FROM mx_corpus "
+        f"WHERE {clickhouse_haystack_sql('en')} LIKE {mcp_sql.quote(f'% {phrase} %')} "
+        f"ORDER BY pair_id LIMIT {CONSENSUS_SAMPLE}"
+    )
+    total_lines = len(lines)
     if total_lines < MIN_PHRASE_SUPPORT:
         return ()
 
     # Document frequency, not raw count: a word repeated inside one line is one line's
     # worth of evidence, not two.
     seen_in = Counter()
-    for (es,) in rows:
+    for (es,) in lines:
         words = es_tokens(es)
         here = set()
         for n in range(1, MAX_N + 1):
@@ -365,10 +368,8 @@ def phrase_consensus(ch, phrase: str, *, keep: int = 2) -> tuple[Consensus, ...]
         return ()
 
     # One pass over the corpus answering every candidate, instead of one pass each.
-    counts = ", ".join(f"countIf(es ILIKE {{c{i}:String}})" for i in range(len(candidates)))
-    params = {f"c{i}": f"%{ng}%" for i, ng in enumerate(candidates)}
-    baseline = ch.query(f"SELECT count(), {counts} FROM mx_corpus",
-                        parameters=params).result_rows[0]
+    counts = ", ".join(f"countIf(es ILIKE {mcp_sql.quote(f'%{ng}%')})" for ng in candidates)
+    baseline = rows(f"SELECT count(), {counts} FROM mx_corpus")[0]
     corpus_lines = int(baseline[0]) or 1
 
     return rank_consensus(measured_consensus(candidates, seen_in, baseline),
@@ -416,6 +417,28 @@ def rank_consensus(measured: Sequence[tuple[str, int, int]], *, total_lines: int
     return tuple(out)
 
 
+def rows(sql: str) -> list[tuple]:
+    """Run one read-only statement, through the MCP server when it is available.
+
+    The ClickHouse track asks for the partner's product to be used at runtime *through
+    the official MCP server*, and the product is this path -- not the question-answering
+    agent, which is where the MCP toolset already lived. So the phrase channel's SQL goes
+    through `mcp-clickhouse`, and the driver stays the fallback for a machine that has no
+    server on PATH.
+
+    The statements are built with literals rather than bound parameters because the MCP
+    tool takes SQL text and nothing else. `mcp_sql.quote` does the escaping, and the only
+    values inlined are phrases cut from the cue by the shared tokenizer.
+    """
+    from . import mcp_sql
+
+    if mcp_sql.available():
+        return mcp_sql.query_values(sql)
+    from .db import client
+
+    return client().query(sql).result_rows
+
+
 def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
     """The attested-phrase half of the evidence, on its own.
 
@@ -424,20 +447,19 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
     every reading of a cue wants the same phrase evidence, and fetching it once per reading
     would ask the same question three times.
     """
-    from .db import client
+    from . import mcp_sql
 
-    ch = client()
     phrases = candidate_phrases(cue)
     hits: list[PhraseHit] = []
     if phrases:
-        rows = ch.query(
-            "SELECT ng, n, support FROM phrase_index "
-            "WHERE ng IN {p:Array(String)} AND support >= {m:UInt32} "
-            "ORDER BY n DESC, support DESC LIMIT 3",
-            parameters={"p": phrases, "m": MIN_PHRASE_SUPPORT},
-        ).result_rows
+        wanted = ", ".join(mcp_sql.quote(p) for p in phrases)
+        found = rows(
+            f"SELECT ng, n, support FROM phrase_index "
+            f"WHERE ng IN ({wanted}) AND support >= {MIN_PHRASE_SUPPORT} "
+            f"ORDER BY n DESC, support DESC LIMIT 3"
+        )
         # Longest first: a 2-word phrase is usually too generic to carry a translation.
-        for ng, n, support in rows:
+        for ng, n, support in found:
             # Short source lines only. In a long line the phrase is a fragment and its
             # Spanish is buried in unrelated words -- "we're going to be" pulled back a
             # sentence about a spine operation. Bounding the line keeps the rendering
@@ -447,19 +469,16 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
             # so nothing was citable, and it showed the Spanish of a whole line as if it
             # were the Spanish of the phrase. The length-ratio pair drops the crudest
             # misalignments the same way `find_precedent` does.
-            rend = ch.query(
+            rend = rows(
                 f"SELECT es, count() AS c, min(pair_id) AS pid, any(doc_id) AS did, "
                 f"       any(en) AS src "
                 f"FROM mx_corpus "
-                f"WHERE {clickhouse_haystack_sql('en')} LIKE {{pat:String}} "
-                f"  AND length(en) <= {{cap:UInt32}} "
-                f"  AND length(es) <= length(en) * {{ratio:Float64}} "
-                f"  AND length(en) <= length(es) * {{ratio:Float64}} "
-                f"GROUP BY es ORDER BY c DESC, length(es) ASC LIMIT {{k:UInt32}}",
-                parameters={"pat": f"% {ng} %", "k": renderings * 3,
-                            "cap": int(len(ng) / MIN_COVERAGE) + 8,
-                            "ratio": MAX_LENGTH_RATIO},
-            ).result_rows
+                f"WHERE {clickhouse_haystack_sql('en')} LIKE {mcp_sql.quote(f"% {ng} %")} "
+                f"  AND length(en) <= {int(len(ng) / MIN_COVERAGE) + 8} "
+                f"  AND length(es) <= length(en) * {MAX_LENGTH_RATIO} "
+                f"  AND length(en) <= length(es) * {MAX_LENGTH_RATIO} "
+                f"GROUP BY es ORDER BY c DESC, length(es) ASC LIMIT {renderings * 3}"
+            )
             # A rendering seen once in a corpus with ~0.5% machine-translated documents is
             # as likely to be that as to be usage. Agreed readings win; singletons are kept
             # only to fill the slots nothing better claimed.
@@ -485,7 +504,7 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
             scored.sort(key=lambda x: (-min(x.count, 3), -x.coverage, len(x.spanish)))
             hits.append(PhraseHit(phrase=ng, words=int(n), support=int(support),
                                   renderings=tuple(scored[:renderings]),
-                                  consensus=phrase_consensus(ch, ng)))
+                                  consensus=phrase_consensus(ng)))
 
     return tuple(hits)
 
