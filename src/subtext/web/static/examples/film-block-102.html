@@ -1,4 +1,4 @@
-<title>Las 40 del paper</title>
+<title>Subtext evaluation · the 40 scholar-chosen lines</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;1,400&display=swap">
 <style>
 :root{
@@ -133,18 +133,18 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
 
 <div class="wrap">
 <header>
-  <p class="eyebrow">Bloque film-sampled · 102 líneas · corrido 2026-09-09</p>
-  <h1>Las 102 que elegimos nosotros</h1>
-  <p class="lede">La película la eligió la literatura; <b>la línea la elegimos nosotros</b>, con un criterio propio y flojo: que llevara carga soez. Por eso este es el grupo más débil de los cuatro y se etiqueta como tal — no hay un traductólogo detrás de cada línea, sólo detrás de cada película. Lo que sí tiene cada una es su subtítulo oficial y su <code>pair_id</code> en el corpus.</p>
+  <p class="eyebrow">Subtext evaluation · film-sampled group · 102 lines · run 2026-09-09</p>
+  <h1>The 102 lines we chose ourselves</h1>
+  <p class="lede">The literature chose the film; <b>we chose the line</b>, by one loose criterion: that it carry profanity. That makes this the weakest of the four groups and it is labelled as such — there is no scholar behind each line, only behind each film. What every line does have is its official subtitle and its <code>pair_id</code> in the corpus. None of the 102 is in the corpus the system retrieves from.</p>
   <div class="stats" id="stats"></div>
 </header>
 </div>
 
 <div class="bar"><div class="wrap barin">
-  <span class="barlab">Persona</span>
+  <span class="barlab">Person</span>
   <div class="persons" id="persons"></div>
   <span class="sep"></span>
-  <span class="barlab">Género</span>
+  <span class="barlab">Gender</span>
   <div class="persons" id="genders"></div>
   <span class="barnote" id="barnote"></span>
 </div></div>
@@ -152,51 +152,42 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
 <div class="wrap"><main id="main"></main>
 
 <footer>
-  <p><b>Cómo leer el anclaje.</b> <span class="chip a">acuerdo 231×</span> es lo que coinciden
-  en decir todas las líneas del corpus que contienen esa frase, y el número es cuántas veces
-  más aparece ahí que en el corpus entero. <span class="chip q">vecino 0.66</span> es la
-  similitud de la línea más parecida que existe. <span class="chip w">frágil</span> marca que
-  ningún precedente estuvo lo bastante cerca: el <code>pair_id</code> que aparece al lado
-  sostiene menos de lo que parece.</p>
-  <p><b>Las de abajo son citas, no salidas del modelo.</b> Cada alternativa es una línea que
-  un traductor mexicano escribió, con su <code>pair_id</code>, su similitud con el inglés de
-  entrada y cuántos de los que tradujeron esa misma línea coincidieron. Se muestran tal como
-  se escribieron y <b>no se re-generan</b>: cambiarle el género a una cita conserva el
-  <code>pair_id</code> y le cambia la línea a la que apunta. Entran sólo por encima de
-  <b>0.80</b> de similitud — por debajo, lo que aparece son traducciones de otra frase
+  <p><b>How to read the grounding.</b> <span class="chip a">agreed 231×</span> is what every
+  corpus line containing that phrase agrees on, and the number is how many times more often
+  it appears there than across the whole corpus. <span class="chip q">nearest 0.66</span> is
+  the similarity of the closest line anyone wrote. <span class="chip w">weak</span> marks
+  that no precedent came close enough: the <code>pair_id</code> beside it supports less than
+  it looks.</p>
+  <p><b>The lines underneath are quotations, not model output.</b> Each alternative is a
+  line a Mexican translator wrote, with its <code>pair_id</code>, its similarity to the input
+  English, and how many of the translators of that same line agreed. They are shown as
+  written and <b>never regenerated</b>: re-gendering a quotation would keep the
+  <code>pair_id</code> and change the line it points at. They appear only above <b>0.80</b>
+  similarity — below that, what shows up are translations of some other line
   (<i>“Am I bothering you?” → “- Esto... - Ay.”</i>).</p>
-  <p><b>El género por defecto es masculino</b>, y es una decisión de esta página, no del
-  corpus: el corpus no puede resolver el género de un <i>you</i>, que es justamente por lo
-  que hay un botón. Sólo se mueven las líneas donde el inglés dejó el género abierto —
-  <i>I</i>, <i>you</i>, <i>we</i>. Donde el inglés ya lo dijo (<i>guy</i>, <i>girl</i>,
-  <i>sir</i>, un nombre) no hay nada que elegir y la línea no se mueve.</p>
-  <p><b>Tres desenlaces, y se distinguen.</b> Una línea puede salir <b>traducida</b>; puede
-  perder todas sus lecturas porque el modelo <b>rechazó cada forma de tratamiento</b>, que es
-  este pipeline funcionando; o el proveedor puede <b>no responder</b>, y entonces se imprime
-  la razón que dio. Sólo el tercero se puede llamar una política, y hoy no ha ocurrido
-  ninguno.</p>
-  <p><b>Tres líneas se quedan sin ninguna lectura, y las tres son inglés impecable.</b>
-  Son las de <i>Massa</i>: el modelo contesta <code>NONE</code> a cada forma de tratamiento —
-  comprobado leyendo la respuesta cruda, no deducido— porque no logra situar a quién se dirige
-  un vocativo de esclavitud. Eso es el pipeline ejerciendo el derecho a rechazar una lectura,
-  no una política del proveedor, y por eso aparecen aquí como <i>ninguna lectura sobrevivió</i>
-  y no como <i>el modelo no respondió</i>.</p>
-  <p><b>Ninguna se perdió por un fallo del servicio, y eso es nuevo.</b> La primera vez que
-  se corrieron estas 102, dos volvieron con <code>503 UNAVAILABLE</code> — un 1,4% de las
-  peticiones llegando al usuario como error por una caída momentánea que no era nuestra.
-  Correr el conjunto entero es lo único que lo enseña; una consulta suelta, nunca. Ahora hay
-  un segundo intento a 1,5 s, y sólo para lo que es transitorio por naturaleza: 503, 429, 500
-  y 504. Una clave mala sigue fallando al instante, porque reintentar eso esconde una avería
-  detrás de una espera. En esta tanda: <b>0 errores de 102</b>.</p>
-  <p>Los subtítulos oficiales de este bloque salen del propio corpus, con su
-  <code>pair_id</code>, así que son mexicanos y sí comparables — al revés que en el bloque
-  paper, donde el oficial es peninsular.</p>
-  <p>Los subtítulos oficiales del bloque <i>Pulp Fiction</i> son <b>español peninsular</b>,
-  que es lo que el paper analiza. Están para comparar, no como respuesta correcta.</p>
-  <p>Los subtítulos oficiales del bloque <i>Pulp Fiction</i> son <b>español peninsular</b>,
-  que es lo que el paper analiza. Están para comparar, no como respuesta correcta.</p>
-  <p>Los subtítulos oficiales del bloque <i>Pulp Fiction</i> son <b>español peninsular</b>,
-  que es lo que el paper analiza. Están para comparar, no como respuesta correcta.</p>
+  <p><b>Gender defaults to masculine</b>, and that is this page's decision, not the
+  corpus's: the corpus cannot settle the gender of a <i>you</i>, which is exactly why there is
+  a button. Only lines where the English left gender open move — <i>I</i>, <i>you</i>,
+  <i>we</i>. Where the English already said it (<i>guy</i>, <i>girl</i>, <i>sir</i>, a name)
+  there is nothing to choose and the line stays put.</p>
+  <p><b>Three outcomes, kept apart.</b> A line can come out <b>translated</b>; it can lose
+  every reading because the model <b>declined each form of address</b>, which is this
+  pipeline working; or the provider can <b>decline to answer</b>, in which case the reason it
+  gave is printed. Only the third can be called a policy.</p>
+  <!-- closing -->
+  <p><b>Three lines are left with no reading, and all three are impeccable English.</b>
+  They are the <i>Massa</i> lines: the model answers <code>NONE</code> to every form of
+  address — checked by reading the raw response, not inferred — because it cannot place whom
+  a vocative of slavery addresses. That is the pipeline exercising its right to decline a
+  reading, not a provider policy, which is why they appear as <i>no reading survived</i> and
+  not as <i>the model did not answer</i>.</p>
+  <p><b>Two were lost to a 503 from the service</b>, nothing of ours. That is what this run
+  uncovered: 1.4% of requests reached the user as an error because of a momentary outage.
+  There is a retry now, and only for what is transient.</p>
+  <p>The official subtitles in this group come from the corpus itself, with their
+  <code>pair_id</code>, so they are Mexican and genuinely comparable — the reverse of the paper
+  group, where the official subtitle is peninsular.</p>
+  <!-- /closing -->
 </footer>
 </div>
 
@@ -207,12 +198,12 @@ const ROWS = [{"q":"I'm gonna take a piss.","film":"Pulp Fiction","note":"litera
 // third-person slot because that is the morphology it takes, and `ustedes` in the second
 // plural, which is where Latin American Spanish teaches it.
 const PARADIGM = [
-  {id:"yo",       n:"1ª sg", label:"yo",      forms:[]},
-  {id:"tú",       n:"2ª sg", label:"tú",      forms:["tú"]},
-  {id:"usted",    n:"3ª sg", label:"usted",   forms:["usted"]},
-  {id:"nosotros", n:"1ª pl", label:"nosotros",forms:[]},
-  {id:"ustedes",  n:"2ª pl", label:"ustedes", forms:["ustedes"]},
-  {id:"generico", n:"—",     label:"genérico",forms:["unmarked"]},
+  {id:"yo",       n:"1sg", label:"yo",      forms:[]},
+  {id:"tú",       n:"2sg", label:"tú",      forms:["tú"]},
+  {id:"usted",    n:"3sg", label:"usted",   forms:["usted"]},
+  {id:"nosotros", n:"1pl", label:"nosotros",forms:[]},
+  {id:"ustedes",  n:"2pl", label:"ustedes", forms:["ustedes"]},
+  {id:"generico", n:"—",     label:"generic",forms:["unmarked"]},
 ];
 const slotOf = f => (PARADIGM.find(p => p.forms.includes(f)) || PARADIGM[5]).id;
 const order  = PARADIGM.map(p => p.id);
@@ -225,7 +216,7 @@ let chosen = order.find(id => available.has(id));
 
 // Masculine by default. It is a choice the page is making, not something retrieved: the
 // corpus cannot settle the gender of a `you`, which is the whole reason there is a button.
-const GENDERS = [{id:"masculino", label:"masculino"}, {id:"femenino", label:"femenino"}];
+const GENDERS = [{id:"masculino", label:"masculine"}, {id:"femenino", label:"feminine"}];
 let gender = "masculino";
 
 // The line as it should read for the current gender. A reading carries the gender it was
@@ -250,12 +241,12 @@ function chips(v, row){
   const out = [];
   const ag = (row.agreed || []).filter(a => v.ag.includes(a.spanish));
   ag.slice(0,2).forEach(a => out.push(
-    `<span class="chip a">acuerdo <b>${esc(a.spanish)}</b> ${Math.round(a.enrichment)}×</span>`));
-  if (v.sim > 0) out.push(`<span class="chip q">vecino ${v.sim.toFixed(2)}</span>`);
-  if (v.weak)    out.push(`<span class="chip w">frágil</span>`);
-  if (v.nm.length) out.push(`<span class="chip w">no mexicano: ${esc(v.nm.join(", "))}</span>`);
-  if (!v.wf)     out.push(`<span class="chip w">gramática</span>`);
-  if (!v.fc && v.slot !== "generico") out.push(`<span class="chip q">forma sin confirmar</span>`);
+    `<span class="chip a">agreed <b>${esc(a.spanish)}</b> ${Math.round(a.enrichment)}×</span>`));
+  if (v.sim > 0) out.push(`<span class="chip q">nearest ${v.sim.toFixed(2)}</span>`);
+  if (v.weak)    out.push(`<span class="chip w">weak</span>`);
+  if (v.nm.length) out.push(`<span class="chip w">not Mexican: ${esc(v.nm.join(", "))}</span>`);
+  if (!v.wf)     out.push(`<span class="chip w">grammar</span>`);
+  if (!v.fc && v.slot !== "generico") out.push(`<span class="chip q">form unconfirmed</span>`);
   return out.join("");
 }
 
@@ -264,9 +255,9 @@ function chips(v, row){
 // because a `pair_id` that points at a line nobody wrote is worth less than no citation.
 function alts(v){
   if (!v.alts.length) return "";
-  return `<p class="altlab">también atestiguadas</p><div class="alts">` + v.alts.map(a =>
+  return `<p class="altlab">also attested</p><div class="alts">` + v.alts.map(a =>
     `<div class="alt">
-       <span class="t">${esc(a.es)}<span class="src-en">de: ${esc(a.en)}</span></span>
+       <span class="t">${esc(a.es)}<span class="src-en">from: ${esc(a.en)}</span></span>
        <span class="s">${a.sim.toFixed(2)} · ${a.times}/${a.of} · pair_id ${a.pair_id}</span>
      </div>`).join("") + `</div>`;
 }
@@ -282,11 +273,11 @@ function render(){
       // Every reading was refused. That is the pipeline declining a reading the line rules
       // out, and it is a different event from the provider declining to answer -- which
       // arrives as a reading marked below, with its reason.
-      right = `<p class="es empty">ninguna lectura sobrevivió</p>
-               <div class="chips"><span class="chip n">rechazadas todas las formas de tratamiento</span></div>`;
+      right = `<p class="es empty">no reading survived</p>
+               <div class="chips"><span class="chip n">every form of address declined</span></div>`;
     } else if (got.v.answered === false) {
-      right = `<p class="es empty">el modelo no respondió</p>
-               <div class="chips"><span class="chip w">${esc(got.v.block_reason || "sin razón")}</span></div>`;
+      right = `<p class="es empty">the model did not answer</p>
+               <div class="chips"><span class="chip w">${esc(got.v.block_reason || "no reason given")}</span></div>`;
     } else {
       const {v, fell} = got;
       const tabs = row.amb ? `<div class="tabs">` + [...row.v]
@@ -295,12 +286,12 @@ function render(){
             esc(PARADIGM.find(p=>p.id===x.slot).label)}</button>`).join("") + `</div>` : "";
       right = tabs
         + `<div class="formrow"><span class="form">${esc(PARADIGM.find(p=>p.id===v.slot).label)}</span>`
-        + (v.g ? `<span class="form">${esc(gender)}</span>` : "")
-        + (row.amb ? "" : `<span class="fixed">persona fijada por el original</span>`)
+        + (v.g ? `<span class="form">${esc(GENDERS.find(g=>g.id===gender).label)}</span>` : "")
+        + (row.amb ? "" : `<span class="fixed">person fixed by the original</span>`)
         + `</div><p class="es">${esc(textFor(v))}</p>`
         + `<div class="chips">${chips(v, row)}</div>`
         + (v.ids.length ? `<p class="ids">${v.ids.map(i=>"pair_id "+i).join("  ")}</p>` : "")
-        + (fell ? `<p class="fallback">sin ${esc(PARADIGM.find(p=>p.id===chosen).label)} en esta línea → ${
+        + (fell ? `<p class="fallback">no ${esc(PARADIGM.find(p=>p.id===chosen).label)} in this line → ${
              esc(PARADIGM.find(p=>p.id===v.slot).label)}</p>` : "")
         + alts(v);
     }
@@ -308,7 +299,7 @@ function render(){
       <div class="src">
         <p class="en">${esc(row.q)}</p>
         <p class="meta">${row.note ? `<span class="tag">${esc(row.note)}</span>` : ""}</p>
-        ${row.off ? `<p class="official">oficial: <i>${esc(row.off)}</i></p>` : ""}
+        ${row.off ? `<p class="official">official subtitle: <i>${esc(row.off)}</i></p>` : ""}
       </div>
       <div class="out" data-i="${ROWS.indexOf(row)}">${right}</div>
     </article>`;
@@ -325,8 +316,8 @@ function render(){
   const n = ROWS.filter(r => r.v.some(v => v.slot === chosen)).length;
   const g = ROWS.filter(r => r.v.some(v => v.g)).length;
   document.getElementById("barnote").textContent =
-    `${n} de ${ROWS.length} líneas tienen esta persona y ${g} mueven el género; `
-    + `el resto no cambia, porque el inglés ya lo dejó decidido.`;
+    `${n} of ${ROWS.length} lines have this person and ${g} move with gender; `
+    + `the rest do not change, because the English already settled it.`;
 }
 
 function renderOne(box, row, v){
@@ -371,12 +362,12 @@ function buttons(){
 function stats(){
   const readings = ROWS.flatMap(r => r.v);
   const s = [
-    [ROWS.length, "líneas del bloque film-sampled"],
-    [ROWS.filter(r => r.amb).length, "ambiguas en inglés — ofrecen persona"],
-    [ROWS.filter(r => r.agreed.length).length, "con acuerdo del corpus detrás"],
-    [readings.filter(v => v.weak).length + " / " + readings.length, "lecturas marcadas frágiles"],
-    [readings.filter(v => v.g).length, "lecturas donde el género queda abierto"],
-    [readings.filter(v => v.alts.length).length, "con otra rendición atestiguada debajo"],
+    [ROWS.length, "lines in the film-sampled group"],
+    [ROWS.filter(r => r.amb).length, "ambiguous in English — offer a person"],
+    [ROWS.filter(r => r.agreed.length).length, "backed by a corpus agreement"],
+    [readings.filter(v => v.weak).length + " / " + readings.length, "readings marked weak"],
+    [readings.filter(v => v.g).length, "readings where gender is open"],
+    [readings.filter(v => v.alts.length).length, "with another attested rendering below"],
   ];
   document.getElementById("stats").innerHTML = s.map(([b, l]) =>
     `<div class="stat"><b>${b}</b><span>${l}</span></div>`).join("");
