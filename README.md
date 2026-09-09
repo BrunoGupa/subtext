@@ -124,9 +124,11 @@ Spanish, and on the evaluation lines it answers in peninsular (`coche`, `chaquet
 `conduce`, `coño`). On mild lines Gemini alone often agrees with the corpus; it earns its
 keep where register is loaded (`Get out of my car.` → `Sal de mi auto.`, cited, against the
 model's `Bájate de mi carro.` and Google's `Sal de mi coche.`, where subtitlers write `auto`
-4:1). Two evaluation pages, `/examples/paper` and
-`/examples/film`, show full pipeline output over the 40 scholar-chosen lines and the 102
-film-sampled lines, rendered ahead of time. A line in the URL, `/?q=Shut+up+and+drive.`, is
+4:1). The front page carries a showcase of
+twenty evaluation lines, selected by us to show the range, with all four answers side by
+side: Subtext with its citations, the official subtitle that shipped, Gemini alone, Google
+Translate. Two evaluation pages, `/examples/paper` and `/examples/film`, show the **full**
+runs, failures included, over the 40 scholar-chosen lines and the 102 film-sampled lines. A line in the URL, `/?q=Shut+up+and+drive.`, is
 localised on arrival.
 
 The question-answering commands — `subtext search`, `aggregate`, `schema` and `ask` — are
