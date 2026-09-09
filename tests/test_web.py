@@ -76,6 +76,14 @@ def test_evidence_rejects_bad_input_too():
     assert client.post("/api/evidence", json={"line": ""}).status_code == 422
 
 
+def test_evidence_applies_the_same_cue_rules_as_the_paid_path():
+    """No model runs behind `/api/evidence`, but ClickHouse Cloud does, and it is billed.
+    A paragraph here is ~2,700 n-grams in one query."""
+    body = client.post("/api/evidence", json={"line": "word " * 400}).json()
+    assert body["phrases"] == []
+    assert "120" in body["error"]
+
+
 # --- what keeps the key from being emptied overnight -------------------------------
 
 def test_one_address_is_cut_off_after_its_share():

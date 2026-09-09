@@ -93,3 +93,36 @@ def test_an_answer_that_narrates_is_not_a_subtitle(answer):
 def test_a_real_rendering_passes():
     assert not looks_like_leak("¡Cállate!", cue="Shut up!")
     assert not looks_like_leak("Súbanse al coche.", cue="Get in the car.")
+
+
+# --- and what language it is in ----------------------------------------------------
+
+@pytest.mark.parametrize("cue", [
+    "\u041a\u0430\u043a \u0434\u0435\u043b\u0430, \u0442\u043e\u0432\u0430\u0440\u0438\u0449?",   # Russian
+    "\u4f60\u597d\uff0c\u4f60\u5728\u505a\u4ec0\u4e48\uff1f",                 # Chinese
+    "\u0645\u0627 \u0627\u0633\u0645\u0643\u061f",                     # Arabic
+    "\u03a4\u03b9 \u03ba\u03ac\u03bd\u03b5\u03b9\u03c2;",                     # Greek
+])
+def test_a_cue_in_another_script_is_refused(cue):
+    """The corpus is English on one side. A cue in another script reaches the phrase
+    channel as zero tokens -- `tokens()` keeps `[a-z\']` -- and would be answered by the
+    multilingual embedding alone, ungrounded."""
+    with pytest.raises(CueRejected):
+        clean_cue(cue)
+
+
+def test_the_alphabet_check_does_not_pretend_to_detect_language():
+    """Documented because it is a real limit, not an oversight: French shares the English
+    alphabet, so `\u00c7a va, mon ami ?` is 90% ASCII and passes. Separating it needs a
+    vocabulary check against the corpus. See `MIN_ASCII_LETTERS`."""
+    assert clean_cue("\u00c7a va, mon ami ?")
+
+
+@pytest.mark.parametrize("cue", [
+    "We met at the caf\u00e9.",
+    "Ren\u00e9e, don't.",
+    "That's na\u00efve.",
+])
+def test_an_english_line_carrying_an_accent_is_kept(cue):
+    """The bound is a proportion, not a ban: English subtitle lines do hold these."""
+    assert clean_cue(cue)

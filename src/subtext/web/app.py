@@ -182,10 +182,14 @@ def _localise(line: str) -> dict[str, Any]:
 
     model = settings().gemini_model
     ask = _asker(model)
-    variants = translate_variants(line, ask=ask, tag_forms=cached_tagger(ask, model=model))
     # Form-neutral and fetched once for the cue, so it rides on the response rather than
     # on every reading: what a phrase agrees on is the same for tú, usted and ustedes.
+    # Once for the whole request, too: `translate_variants` needs the identical object to
+    # build its prompts, and fetching it here and again in there ran the phrase channel
+    # twice -- 20 round trips to ClickHouse Cloud where 10 answer the question.
     phrases = gather_phrases(line)
+    variants = translate_variants(line, ask=ask, phrases=phrases,
+                                  tag_forms=cached_tagger(ask, model=model))
     return {
         "line": line,
         "agreed": [
@@ -267,9 +271,25 @@ async def api_localise(request: LocaliseRequest, http: Request) -> dict[str, Any
 
 
 @app.post("/api/evidence")
-async def api_evidence(request: LocaliseRequest) -> dict[str, Any]:
-    """What the corpus holds for this line, with no model call and no translation."""
+async def api_evidence(request: LocaliseRequest, http: Request) -> dict[str, Any]:
+    """What the corpus holds for this line, with no model call and no translation.
+
+    No model runs here, so nothing is spent on Gemini -- which is exactly why this endpoint
+    was left open, and exactly why that was wrong. `LocaliseRequest` admits 4000 characters:
+    ~700 words become ~2,700 n-grams in one `IN (...)` against ClickHouse Cloud, which bills
+    for the compute. Guarding the paid door and leaving this one unbounded guards nothing.
+    """
     from ..localise import gather_phrases
+
+    try:
+        line = clean_cue(request.line)
+    except CueRejected as why:
+        return {"line": request.line, "phrases": [], "error": str(why)}
+
+    who = (http.client.host if http.client else "?")
+    if not _rate_ok(who):
+        return {"line": line, "phrases": [],
+                "error": f"Too many requests — {RATE_LIMIT} a minute. Try again shortly."}
 
     def work():
         return [
@@ -283,10 +303,10 @@ async def api_evidence(request: LocaliseRequest) -> dict[str, Any]:
                     for r in h.renderings
                 ],
             }
-            for h in gather_phrases(request.line)
+            for h in gather_phrases(line)
         ]
 
-    return {"line": request.line, "phrases": await asyncio.to_thread(work)}
+    return {"line": line, "phrases": await asyncio.to_thread(work)}
 
 
 def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:

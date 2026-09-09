@@ -39,9 +39,26 @@ MAX_EVIDENCE_CHARS = 300
 #: Everything untrusted is fenced, and the instruction says the fence means "data".
 OPEN, CLOSE = "<<<", ">>>"
 
+#: How much of a line's alphabet must be ASCII before it is treated as English. Not 100%:
+#: `café`, `naïve` and `Renée` are English subtitle lines and the corpus holds them.
+#:
+#: This separates SCRIPTS, and nothing more. A cue in Cyrillic, Chinese, Greek or Arabic
+#: scores 0 and is refused, which matters because `tokens()` keeps `[a-z']` and nothing
+#: else: such a cue reaches the phrase channel as zero n-grams, and only the multilingual
+#: embedding answers it -- ungrounded, from evidence that is not about it.
+#:
+#: What this CANNOT do is separate one Latin-alphabet language from another. `Ça va, mon
+#: ami ?` is 90% ASCII letters and passes, and French is the worse case, not the better
+#: one: `ça` yields the junk token `a`, so the line matches English precedent it has
+#: nothing to do with. Catching that needs a vocabulary check against the corpus, not an
+#: alphabet check. Until there is one, a French cue is answered the way any cue with no
+#: precedent is: ungrounded, and marked as such.
+MIN_ASCII_LETTERS = 0.6
+
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 _WORD = re.compile(r"\S+")
 _LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
+_ASCII_LETTER = re.compile(r"[A-Za-z]")
 
 
 class CueRejected(ValueError):
@@ -68,8 +85,13 @@ def clean_cue(text: str) -> str:
     text = " ".join(text.split())
     if not text:
         raise CueRejected("Type a subtitle line.")
-    if not _LETTER.search(text):
+    letters = _LETTER.findall(text)
+    if not letters:
         raise CueRejected("That has no words in it.")
+    ascii_letters = sum(1 for ch in letters if _ASCII_LETTER.match(ch))
+    if ascii_letters < len(letters) * MIN_ASCII_LETTERS:
+        raise CueRejected(
+            "This localises English subtitle lines — type the English one.")
     if len(text) > MAX_CHARS:
         raise CueRejected(
             f"That is {len(text)} characters. A subtitle line is at most {MAX_CHARS}.")
