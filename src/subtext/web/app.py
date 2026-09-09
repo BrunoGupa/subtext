@@ -20,14 +20,20 @@ Two modes, deliberately:
 from __future__ import annotations
 
 import asyncio
+import os
+import threading
+import time
+from collections import OrderedDict, defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from ..config import settings
+from ..guard import CueRejected, clean_cue
 
 STATIC = Path(__file__).parent / "static"
 
@@ -100,7 +106,54 @@ async def status() -> dict[str, Any]:
 
 
 class LocaliseRequest(BaseModel):
-    line: str = Field(min_length=1, max_length=300)
+    #: Deliberately far above what `clean_cue` will accept. The request model is the outer
+    #: bound on what may be read into memory at all; the contract a person needs explained
+    #: -- twelve words, one line -- is enforced below, where the answer can say so. Rejected
+    #: here instead, a pasted paragraph gets a bare 422 and the page shows a status code.
+    line: str = Field(min_length=1, max_length=4000)
+
+
+#: Requests one address may make per window, and the window. A person exploring the demo
+#: makes a handful; a loop makes thousands, and every one of them is four to six paid
+#: Gemini calls. The bound is on cost, not on courtesy.
+RATE_LIMIT, RATE_WINDOW = 20, 60.0
+
+#: And a ceiling for the whole day, because a rate limit per address is no defence at all
+#: against many addresses. Reaching it takes the site read-only rather than silently
+#: spending: the corpus still answers, the model does not.
+DAILY_BUDGET = int(os.getenv("SUBTEXT_DAILY_BUDGET", "1500"))
+
+_hits: dict[str, list[float]] = defaultdict(list)
+_day: list = [None, 0]        # [date, calls]
+_cache: OrderedDict[str, dict] = OrderedDict()
+_CACHE_MAX = 256
+_guard_lock = threading.Lock()
+
+
+def _rate_ok(who: str) -> bool:
+    now = time.time()
+    with _guard_lock:
+        seen = [t for t in _hits[who] if now - t < RATE_WINDOW]
+        _hits[who] = seen
+        if len(seen) >= RATE_LIMIT:
+            return False
+        seen.append(now)
+        # Addresses that stopped asking should not be remembered forever.
+        if len(_hits) > 4096:
+            for key in [k for k, v in _hits.items() if not v]:
+                del _hits[key]
+        return True
+
+
+def _budget_ok() -> bool:
+    today = date.today()
+    with _guard_lock:
+        if _day[0] != today:
+            _day[0], _day[1] = today, 0
+        if _day[1] >= DAILY_BUDGET:
+            return False
+        _day[1] += 1
+        return True
 
 
 def _asker(model: str | None = None):
@@ -176,12 +229,41 @@ def _localise(line: str) -> dict[str, Any]:
 
 
 @app.post("/api/localise")
-async def api_localise(request: LocaliseRequest) -> dict[str, Any]:
+async def api_localise(request: LocaliseRequest, http: Request) -> dict[str, Any]:
     """One English subtitle line in, every Mexican reading the corpus attests out."""
+    try:
+        line = clean_cue(request.line)
+    except CueRejected as why:
+        return {"line": request.line, "readings": [], "error": str(why)}
+
     if not settings().has_gemini_key:
-        return {"line": request.line, "readings": [],
+        return {"line": line, "readings": [],
                 "error": "GOOGLE_API_KEY is not set, so no translation can be written."}
-    return await asyncio.to_thread(_localise, request.line)
+
+    # Repeats cost nothing and the demo repeats a lot: four example buttons, one judge,
+    # one video take, the same four lines each time.
+    with _guard_lock:
+        cached = _cache.get(line)
+        if cached is not None:
+            _cache.move_to_end(line)
+    if cached is not None:
+        return cached
+
+    who = (http.client.host if http.client else "?")
+    if not _rate_ok(who):
+        return {"line": line, "readings": [],
+                "error": f"Too many requests — {RATE_LIMIT} a minute. Try again shortly."}
+    if not _budget_ok():
+        return {"line": line, "readings": [],
+                "error": "The day's translation budget is spent. The corpus is still "
+                         "searchable; come back tomorrow for a new line."}
+
+    answer = await asyncio.to_thread(_localise, line)
+    with _guard_lock:
+        _cache[line] = answer
+        while len(_cache) > _CACHE_MAX:
+            _cache.popitem(last=False)
+    return answer
 
 
 @app.post("/api/evidence")

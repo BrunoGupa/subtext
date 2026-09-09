@@ -37,7 +37,16 @@ from .ingest.mexican import MEXICAN, PENINSULAR
 from .tokenizer import MAX_N, clickhouse_haystack_sql, es_tokens, ngrams, tokens
 
 #: A neighbour below this cosine similarity is noise dressed as evidence.
-MIN_SIMILARITY = 0.55
+#:
+#: Re-measured 2026-09-08 for `gemini-embedding-001`, which does not use MiniLM's scale:
+#: an exact line match came back 1.00 either way, but an unsupported cue bottomed out at
+#: 0.55 under MiniLM and at 0.88 here. Every bound below moved with it.
+#:
+#: 0.85 was chosen by reading the band rather than counting it. Between 0.90 and 0.96 for
+#: `Get in the car.` sit `Get in.` -> `Súbete` / `Sube` / `Súbanse` / `Trépate` and
+#: `- Get into the car!` -> `Súbete al coche, Rebeca.` -- real evidence, and a floor at
+#: 0.92 would start dropping them. Below 0.85 the neighbours answer other sentences.
+MIN_SIMILARITY = 0.85
 
 #: Phrases seen fewer than this are too thin to quote as precedent.
 MIN_PHRASE_SUPPORT = 3
@@ -581,21 +590,27 @@ Rules:
 
 
 def format_evidence(evidence: Evidence) -> str:
-    """The evidence block, as the model sees it."""
-    lines: list[str] = [f"ENGLISH CUE:\n{evidence.cue}\n"]
+    """The evidence block, as the model sees it.
+
+    Every untrusted string is fenced -- the cue, and every corpus line. The corpus is
+    third-party subtitle text, so it is no more trusted than the cue is; see `guard`.
+    """
+    from .guard import FENCE_NOTE, fence
+
+    lines: list[str] = [FENCE_NOTE, "", f"ENGLISH CUE:\n{fence(evidence.cue)}\n"]
 
 
     if evidence.phrases:
         lines.append("ATTESTED PHRASES (exact, from the corpus):")
         for hit in evidence.phrases:
-            lines.append(f'  "{hit.phrase}" — appears in {hit.support} lines')
+            lines.append(f'  {fence(hit.phrase)} — appears in {hit.support} lines')
             for c in hit.consensus:
-                lines.append(f"      AGREED RENDERING: {c.spanish}   "
+                lines.append(f"      AGREED RENDERING: {fence(c.spanish)}   "
                              f"({c.lines} of {c.of_lines} lines carrying this phrase, "
                              f"{c.enrichment:.0f}x the corpus rate)")
             for r in hit.renderings:
-                lines.append(f"      {r.count:>3}x  {r.spanish}")
-                lines.append(f"           from: {r.english}   "
+                lines.append(f"      {r.count:>3}x  {fence(r.spanish)}")
+                lines.append(f"           from: {fence(r.english)}   "
                              f"(pair_id {r.pair_id}, covers {r.coverage:.0%} of the line)")
         lines.append("")
 
@@ -603,8 +618,8 @@ def format_evidence(evidence: Evidence) -> str:
         lines.append("SIMILAR LINES (close in meaning — a guide to register, not to words):")
         for n in evidence.neighbours:
             agree = f"{n.times}/{n.english_times}" if n.english_times > 1 else "1"
-            lines.append(f"  [{n.similarity:.2f}] {n.english}")
-            lines.append(f"          -> {n.spanish}   "
+            lines.append(f"  [{n.similarity:.2f}] {fence(n.english)}")
+            lines.append(f"          -> {fence(n.spanish)}   "
                          f"({agree} translators, pair_id {n.pair_id})")
         lines.append("")
 

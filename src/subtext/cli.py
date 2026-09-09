@@ -338,8 +338,16 @@ def cmd_localise(args: argparse.Namespace) -> int:
                 print(f"      {p.spanish}   (pair_id {p.pair_id})")
         return 0
 
-    variants = translate_variants(args.cue, ask=_asker(args.model), model=args.model)
-    print(f"EN  {args.cue}")
+    from .guard import CueRejected, clean_cue
+
+    try:
+        cue = clean_cue(args.cue)
+    except CueRejected as why:
+        print(f"    {why}")
+        return 2
+
+    variants = translate_variants(cue, ask=_asker(args.model), model=args.model)
+    print(f"EN  {cue}")
     if not variants:
         # Every reading was refused, which is the pipeline working: the model declines a
         # reading the line rules out. It is not the provider blocking the content -- that

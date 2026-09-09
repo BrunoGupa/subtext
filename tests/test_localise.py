@@ -255,8 +255,11 @@ def test_an_agreed_rendering_reaches_the_prompt_with_its_evidence():
     ev = Evidence(cue="He wore this watch up his ass", phrases=(
         PhraseHit("up his ass", 3, 6, (), (Consensus("por el culo", 3, 6, 5790.0),)),))
     text = format_evidence(ev)
-    assert "AGREED RENDERING: por el culo" in text
+    assert "AGREED RENDERING: <<<por el culo>>>" in text
     assert "3 of 6 lines" in text and "5790x" in text
+    # Fenced, like every other untrusted string that reaches a prompt -- the corpus is
+    # third-party subtitle text and is no more trusted than the cue.
+    assert "<<<" in text
 
 
 def test_the_instruction_ranks_agreement_above_the_weaker_channels():

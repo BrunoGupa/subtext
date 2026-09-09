@@ -148,7 +148,7 @@ def test_the_agreed_rendering_reaches_the_translation_prompt():
         "He wore this watch up his ass",
         VariantEvidence(form=Address.UNMARKED),
         phrases=(PhraseHit("up his ass", 3, 6, (), (Consensus("por el culo", 3, 6, 5790.0),)),))
-    assert "AGREED RENDERING: por el culo" in text
+    assert "AGREED RENDERING: <<<por el culo>>>" in text
 
 
 def test_an_exact_line_precedent_outranks_an_agreed_phrase():

@@ -123,13 +123,19 @@ input::placeholder{color:var(--faint)}
 
 footer{border-top:1px solid var(--rule);padding:26px 0 44px;color:var(--muted);font-size:12.5px}
 footer a{color:var(--muted)}
-.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(186px,1fr));gap:1px;
+.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
         background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
-.card{background:var(--surface);padding:14px 15px 15px}
-.card .chip{margin-bottom:9px}
-.card b{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}
+@media (max-width:720px){.legend{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:400px){.legend{grid-template-columns:1fr}}
+.card{background:var(--surface);padding:13px 14px 14px;display:flex;flex-direction:column;gap:7px}
+.card .chip{align-self:flex-start;margin:0}
+.card b{font-size:12.5px;font-weight:600;color:var(--ink)}
 .card p{margin:0;font-size:12px;line-height:1.45;color:var(--muted)}
-.source{margin:16px 0 0;font-size:11.5px;color:var(--faint);max-width:74ch}
+.card b + p{margin-top:-4px}
+.source{margin:12px 0 0;font-size:11.5px;color:var(--faint);max-width:78ch}
+.refs{margin:16px 0 0;padding-left:18px;font-size:11.5px;color:var(--faint);max-width:78ch}
+.refs li{margin:0 0 5px}
+.refs a{color:var(--faint);text-decoration:underline}
 code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 4px;border-radius:2px}
 @media (max-width:620px){.alt{grid-template-columns:1fr}.alt .s{text-align:left}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -157,7 +163,7 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   </div>
 
   <div class="examples films">
-    <span>Or a film the researchers picked:</span>
+    <span>Or a line the literature calls among the hardest to translate:</span>
     <button class="film" type="button" data-film="pulp" aria-expanded="false">Pulp Fiction</button>
     <button class="film" type="button" data-film="deadpool" aria-expanded="false">Deadpool</button>
   </div>
@@ -184,31 +190,35 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     <div class="card">
       <span class="chip a">agreed · cansado · 1749×</span>
       <b>The corpus agrees</b>
-      <p>What every line carrying that phrase puts in its Spanish — and how much more often
-      it appears there than in the corpus at large.</p>
+      <p>Every line with that phrase says this, far above the corpus average.</p>
     </div>
     <div class="card">
       <span class="chip q">nearest 0.94</span>
-      <b>Closest line by meaning</b>
-      <p>How near the nearest thing anyone actually wrote is to yours.</p>
+      <b>Closest by meaning</b>
+      <p>How near the nearest thing anyone wrote is to yours.</p>
     </div>
     <div class="card">
       <span class="chip w">weak</span>
       <b>Nothing came close</b>
-      <p>The line cited beside it supports less than it appears to. A guess and a citation
-      never look alike here.</p>
+      <p>The line cited beside it supports less than it looks.</p>
     </div>
     <div class="card">
       <span class="chip q">Also attested</span>
       <b>Quotations, not output</b>
-      <p>Written by a Mexican translator, shown as written. Never re-gendered — that would
-      keep the citation and move the line it points at.</p>
+      <p>Real lines by Mexican translators, shown as written.</p>
     </div>
   </div>
-  <p class="source"><b>line 88388575</b> is a row of the corpus — its <code>pair_id</code>,
-  stable across rebuilds, so any answer here can be checked against the line itself. Corpus:
-  OPUS OpenSubtitles · <a href="http://www.opensubtitles.org/">opensubtitles.org</a> ·
-  Lison &amp; Tiedemann (2016).</p>
+  <ol class="refs">
+    <li>Ávila-Cabrera, J. J. (2015). “Subtitling Tarantino’s offensive and taboo dialogue
+      exchanges into European Spanish: the case of <em>Pulp Fiction</em>.”
+      <i>Revista de Lingüística y Lenguas Aplicadas</i> 10: 1–11.
+      <a href="http://dx.doi.org/10.4995/rlyla.2015.3419">10.4995/rlyla.2015.3419</a></li>
+    <li>Rohmawati, I. (2021). “Subtitling Strategies of Swear Words in Deadpool One &amp;
+      Deadpool Two Film.” <i>Indonesian Journal of EFL and Linguistics</i> 6(1): 219–232.</li>
+  </ol>
+  <p class="source"><b>line 88388575</b> names a row of the corpus — its <code>pair_id</code>,
+  stable across rebuilds, so any answer can be checked. Corpus: OPUS OpenSubtitles ·
+  <a href="http://www.opensubtitles.org/">opensubtitles.org</a> · Lison &amp; Tiedemann (2016).</p>
 </footer>
 </div>
 
@@ -346,13 +356,13 @@ document.querySelectorAll('.ex').forEach(b =>
 const FILMS = {
   pulp: {
     title: 'Pulp Fiction',
-    note: 'Ávila-Cabrera (2015) measured 41.8% of this film’s offensive load never reaching the Spanish subtitle.',
+    note: '41.8% of this film’s offensive and taboo load never reaches the Spanish subtitle — 27.7% omitted outright, 14.1% neutralised. [1]',
     lines: ['Shut the fuck up', 'Get the fuck out my face!', 'Goddamn it!',
             'The motherfucker’s tip-top', 'He wore this watch up his ass'],
   },
   deadpool: {
     title: 'Deadpool',
-    note: 'Rohmawati (2021) found deletion the most frequent strategy in Deadpool 2 — 39% of instances.',
+    note: 'Deletion is the most frequent strategy of all in Deadpool 2 — 65 of 166 instances, 39%. [2]',
     lines: ['I’ll burn your balls off!', 'And nobody fucking realizes it.',
             'Why such a douche this morning?'],
   },

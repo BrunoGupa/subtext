@@ -35,11 +35,25 @@ def test_the_page_offers_an_example_the_corpus_answers_three_ways():
 @pytest.mark.parametrize("body", [
     {},                      # nothing at all
     {"line": ""},            # empty
-    {"line": "x" * 400},     # past the length bound
+    {"line": "x" * 5000},    # past what the request model will even carry
 ])
-def test_localise_rejects_bad_input_before_touching_the_model(body):
+def test_localise_rejects_malformed_requests(body):
     """Validation runs before anything is retrieved or any token is spent."""
     assert client.post("/api/localise", json=body).status_code == 422
+
+
+@pytest.mark.parametrize("line,tell", [
+    ("x" * 350, "characters"),
+    (" ".join(["hi"] * 30), "words"),
+    ("first line\nsecond line", "One line at a time"),
+])
+def test_a_line_that_breaks_the_contract_comes_back_explained(line, tell):
+    """Answered rather than 422'd: the page renders `error`, and a person who pasted a
+    paragraph should read what to do instead of `the server answered 422`. No retrieval
+    happens and no token is spent either way."""
+    body = client.post("/api/localise", json={"line": line}).json()
+    assert body["readings"] == []
+    assert tell in body["error"]
 
 
 def test_localise_without_a_key_explains_itself_rather_than_erroring(monkeypatch):
@@ -60,3 +74,44 @@ def test_localise_without_a_key_explains_itself_rather_than_erroring(monkeypatch
 
 def test_evidence_rejects_bad_input_too():
     assert client.post("/api/evidence", json={"line": ""}).status_code == 422
+
+
+# --- what keeps the key from being emptied overnight -------------------------------
+
+def test_one_address_is_cut_off_after_its_share():
+    """Twenty a minute is generous for a person and useless for a loop. Tested here
+    rather than over HTTP: a real request takes about ten seconds, so twenty of them
+    outlast the window and nothing would ever trip."""
+    # Imported by name: `subtext/web/__init__.py` re-exports the FastAPI instance as
+    # `app`, so `import subtext.web.app` hands back the instance, not the module.
+    from subtext.web.app import RATE_LIMIT, _hits, _rate_ok
+
+    _hits.clear()
+    assert all(_rate_ok("10.0.0.1") for _ in range(RATE_LIMIT))
+    assert not _rate_ok("10.0.0.1")
+    # A limit per address is no defence against many addresses -- that is the budget's job.
+    assert _rate_ok("10.0.0.2")
+
+
+def test_the_day_has_a_ceiling_and_it_degrades_rather_than_spends():
+    from subtext.web.app import DAILY_BUDGET, _budget_ok, _day
+
+    _day[0], _day[1] = None, 0
+    for _ in range(DAILY_BUDGET):
+        assert _budget_ok()
+    assert not _budget_ok()
+
+
+def test_the_cache_evicts_the_oldest_and_keeps_what_is_asked_for_again():
+    """The demo repeats: four example buttons, one judge, one video take. Bounded, so a
+    long session cannot grow it without limit."""
+    from subtext.web.app import _CACHE_MAX, _cache
+
+    _cache.clear()
+    for i in range(_CACHE_MAX + 10):
+        _cache[f"line {i}"] = {"readings": []}
+        while len(_cache) > _CACHE_MAX:
+            _cache.popitem(last=False)
+    assert len(_cache) == _CACHE_MAX
+    assert "line 0" not in _cache
+    assert f"line {_CACHE_MAX + 9}" in _cache

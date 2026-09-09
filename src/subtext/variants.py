@@ -36,6 +36,7 @@ import json
 import re
 
 from .address import Address
+from .guard import FENCE_NOTE, fence, looks_like_leak
 from .localise import MIN_SIMILARITY, check_register, gather_phrases
 
 #: How much precedent a reading needs before it is offered. A *marked* reading makes a
@@ -97,7 +98,11 @@ BLOCKED = "BLOCKED>"
 #:
 #: The line was still reported as grounded, because `grounded` only asked whether anything
 #: came back. It now also asks whether anything came back *close*.
-WEAK_SIMILARITY = 0.65
+#: Re-measured 2026-09-08 against ten cues, six with a rendering in the corpus and four
+#: with none. The two bands do not overlap -- grounded 0.939 to 1.000, ungrounded 0.829 to
+#: 0.889 -- and 0.91 sits in the gap with margin on both sides. Left at MiniLM's 0.65 the
+#: mark would never have fired again: `Helps fellatio.` now scores 0.884.
+WEAK_SIMILARITY = 0.91
 
 
 @dataclass(frozen=True)
@@ -329,25 +334,25 @@ def format_variant_prompt(cue: str, evidence: VariantEvidence, *,
         who=f"{who} — {description}" if who else description,
         grammar=_GRAMMAR[evidence.form],
     )
-    lines = [header, f"\nENGLISH CUE:\n{cue}\n"]
+    lines = [header, "", FENCE_NOTE, f"\nENGLISH CUE:\n{fence(cue)}\n"]
     if phrases:
         # The phrase channel is form-neutral: a rendering of `"the truth"` is the same
         # whether the scene is tú or usted. It is fetched once and shown to every reading.
         lines.append("ATTESTED PHRASES (exact wording, from the corpus):")
         for hit in phrases:
-            lines.append(f'  "{hit.phrase}" — in {hit.support} lines')
+            lines.append(f'  {fence(hit.phrase)} — in {hit.support} lines')
             # The agreed rendering is the only evidence here that is about the PHRASE
             # rather than about a line that happened to contain it, so it leads. Leaving
             # it out of this prompt while `--evidence-only` printed it is what let
             # `up his ass` reach the model with three phrase headings and no Spanish
             # under any of them.
             for c in hit.consensus:
-                lines.append(f"      AGREED RENDERING: {c.spanish}   "
+                lines.append(f"      AGREED RENDERING: {fence(c.spanish)}   "
                              f"({c.lines} of {c.of_lines} lines carrying this phrase, "
                              f"{c.enrichment:.0f}x the corpus rate) — use this wording")
             for r in hit.renderings:
-                lines.append(f"      {r.count:>3}x  {r.spanish}")
-                lines.append(f"           from: {r.english}   (pair_id {r.pair_id})")
+                lines.append(f"      {r.count:>3}x  {fence(r.spanish)}")
+                lines.append(f"           from: {fence(r.english)}   (pair_id {r.pair_id})")
         lines.append("")
     def render(items, header: str) -> None:
         if not items:
@@ -356,8 +361,8 @@ def format_variant_prompt(cue: str, evidence: VariantEvidence, *,
         for precedent in items:
             agree = (f"{precedent.times}/{precedent.english_times}"
                      if precedent.english_times > 1 else "1")
-            lines.append(f"  [{precedent.similarity:.2f}] {precedent.english}")
-            lines.append(f"          -> {precedent.spanish}   "
+            lines.append(f"  [{precedent.similarity:.2f}] {fence(precedent.english)}")
+            lines.append(f"          -> {fence(precedent.spanish)}   "
                          f"({agree} translators, pair_id {precedent.pair_id})")
         lines.append("")
 
@@ -404,7 +409,12 @@ def check_output(line: str, *, ask) -> tuple[Address, bool, str]:
 #: alternative. Below it the line is precedent for the register and nothing more -- it
 #: answers a different sentence, and putting it under the chosen line as a second option
 #: would invite a reader to pick it.
-ALTERNATIVE_SIMILARITY = 0.80
+#:
+#: 0.80 under MiniLM, 0.95 here, and again read rather than counted: at 0.95 `Get in the
+#: car.` offers `Get in the car already.` -> `Ay, ya, sube, por favor.` and `- Get into
+#: the car!` -> `Súbete al coche, Rebeca.`, while 0.93 would add `Take the car.` ->
+#: `Llévate el carro.`, which is a different sentence.
+ALTERNATIVE_SIMILARITY = 0.95
 
 #: How many alternatives are shown. Two, because the point is that the choice is real, not
 #: to hand a reviewer a list to grade.
@@ -493,7 +503,8 @@ def _regender(spanish: str, cue: str, *, ask) -> tuple["Gender | None", str]:
     feminine", and telling them apart cost a second question on every genderless line --
     which is most of them. The `M>` / `F>` prefix carries the direction instead.
     """
-    reply = _first_line(ask(REGENDER_INSTRUCTION.format(spanish=spanish, cue=cue)))
+    reply = _first_line(ask(REGENDER_INSTRUCTION.format(
+        spanish=fence(spanish), cue=fence(cue))))
     if not reply or reply.upper().rstrip(".!") == REFUSAL:
         return None, ""
     marker, _, flipped = reply.partition(">")
@@ -578,7 +589,7 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         else:
             who, description = _ASKED[evidence.form]
             prompt = DECLINE_INSTRUCTION.format(
-                spanish=decided,
+                spanish=fence(decided),
                 who=f"{who} — {description}" if who else description,
                 grammar=_GRAMMAR[evidence.form])
         reply = ask(prompt)
@@ -596,6 +607,17 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
             continue
 
         spanish = _first_line(reply)
+        # The gates below read register, form and grammar. None of them can see the one
+        # thing an injection produces: an answer that is the prompt talking rather than a
+        # subtitle. That is checked here, before anything downstream trusts the string.
+        if looks_like_leak(spanish, cue=cue):
+            out.append(Variant(
+                form=evidence.form, spanish="", answered=False,
+                block_reason="the answer did not look like a subtitle line",
+                pair_ids=evidence.pair_ids[:limit], agreed=agreed,
+                grounded=bool(evidence.precedents or evidence.shared or agreed),
+            ))
+            continue
 
         # The model was given the right to refuse a reading the line rules out -- usted to
         # somebody the line calls `kid`. A refused reading is not offered at all, which is
