@@ -468,7 +468,10 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
             f"ORDER BY n DESC, support DESC LIMIT 3"
         )
         # Longest first: a 2-word phrase is usually too generic to carry a translation.
-        for ng, n, support in found:
+        # Each phrase is three round trips to ClickHouse Cloud and none depends on
+        # another, so the phrases run at once and the order of `found` is kept.
+        def one(item):
+            ng, n, support = item
             # Short source lines only. In a long line the phrase is a fragment and its
             # Spanish is buried in unrelated words -- "we're going to be" pulled back a
             # sentence about a spine operation. Bounding the line keeps the rendering
@@ -511,9 +514,14 @@ def gather_phrases(cue: str, *, renderings: int = 3) -> tuple[PhraseHit, ...]:
             # bound the Spanish is not about the phrase, it is about the rest of the line.
             scored = [x for x in scored if x.coverage >= MIN_COVERAGE]
             scored.sort(key=lambda x: (-min(x.count, 3), -x.coverage, len(x.spanish)))
-            hits.append(PhraseHit(phrase=ng, words=int(n), support=int(support),
-                                  renderings=tuple(scored[:renderings]),
-                                  consensus=phrase_consensus(ng)))
+            return PhraseHit(phrase=ng, words=int(n), support=int(support),
+                             renderings=tuple(scored[:renderings]),
+                             consensus=phrase_consensus(ng))
+
+        if found:
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=len(found)) as pool:
+                hits.extend(pool.map(one, found))
 
     return tuple(hits)
 

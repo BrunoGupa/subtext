@@ -348,18 +348,32 @@ def _localise(line: str) -> dict[str, Any]:
     # Once for the whole request, too: `translate_variants` needs the identical object to
     # build its prompts, and fetching it here and again in there ran the phrase channel
     # twice -- 20 round trips to ClickHouse Cloud where 10 answer the question.
-    phrases = gather_phrases(line)
-    corpus_seconds = time.perf_counter() - started
-    variants = translate_variants(line, ask=ask, phrases=phrases,
-                                  tag_forms=cached_tagger(ask, model=model))
+    # The phrase channel, the vector channel and the two controls need nothing from each
+    # other, so they start together. Measured before this: 16-28 s per new line, most of
+    # it four things waiting in a row for the same network.
+    from concurrent.futures import ThreadPoolExecutor
+    from ..variants import group_by_address
+
+    tag_forms = cached_tagger(ask, model=model)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        f_phrases = pool.submit(gather_phrases, line)
+        f_readings = pool.submit(group_by_address, line, tag_forms=tag_forms)
+        f_baseline = pool.submit(_baseline, line, ask)
+        f_google = pool.submit(_google, line)
+        phrases = f_phrases.result()
+        readings = f_readings.result()
+        corpus_seconds = time.perf_counter() - started
+        variants = translate_variants(line, ask=ask, phrases=phrases, readings=readings,
+                                      tag_forms=tag_forms)
+        baseline, google = f_baseline.result(), f_google.result()
     total_seconds = time.perf_counter() - started
     return {
         # The control: the same model asked the same thing with no evidence at all. It is
         # what a person gets today, and the difference between it and the readings above
         # is the whole product. Never gated, never retried, never cited -- it is shown as
         # what it is, and run through the register lexicon so its peninsular words show.
-        "baseline": _baseline(line, ask),
-        "google": _google(line),
+        "baseline": baseline,
+        "google": google,
         "line": line,
         # Where the time went, so the page can say it. The phrase channel is ten round
         # trips to ClickHouse Cloud; everything after it is the vector channel plus one

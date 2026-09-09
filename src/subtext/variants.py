@@ -541,7 +541,8 @@ def _key(text: str) -> str:
 
 
 def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
-                       model: str | None = None, phrases: Sequence | None = None) -> list[Variant]:
+                       model: str | None = None, phrases: Sequence | None = None,
+                       readings: "list[VariantEvidence] | None" = None) -> list[Variant]:
     """Every attested reading of `cue`, translated. One model call per reading.
 
     `ask` takes a prompt and returns text, so the caller owns the model configuration and
@@ -585,7 +586,10 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
     #
     # So the wording is decided once, on the reading the corpus attests best, and every
     # other form is that same line declined. One call per reading either way.
-    readings = group_by_address(cue, tag_forms=tag_forms)
+    # `readings` may arrive precomputed for the same reason `phrases` may: the web
+    # endpoint fetches both channels at once, since neither needs the other.
+    if readings is None:
+        readings = group_by_address(cue, tag_forms=tag_forms)
     base = max(readings, key=lambda e: (len(e.precedents),
                                         max((p.similarity for p in e.precedents), default=0.0)))
     decided = ""
@@ -631,7 +635,17 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         if spanish.upper().rstrip(".!") == REFUSAL:
             return None
 
-        form, well_formed, fix = check_output(spanish, ask=ask)
+        # The grammar check and the gender question read the same string and neither
+        # needs the other, so they are asked at once; measured in series they were 4 s
+        # and 3 s of a base reading. If the retry below changes the wording, the gender
+        # answer is about a line that no longer exists and is asked again.
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=2) as pair:
+            f_check = pair.submit(check_output, spanish, ask=ask)
+            f_gender = pair.submit(_regender, spanish, cue, ask=ask)
+            form, well_formed, fix = f_check.result()
+            gender, other = f_gender.result()
+        checked = spanish
         wrong_form = (evidence.form is not Address.UNMARKED
                       and form is not Address.UNMARKED
                       and form is not evidence.form)
@@ -673,7 +687,8 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         # Asked per reading and not once per cue: gender can appear in the declension even
         # when the decided wording has none. `No te quiero matar.` marks nobody -- `te` is
         # the same for either -- while its usted reading has to choose `lo` or `la`.
-        gender, other = _regender(spanish, cue, ask=ask) if spanish else (None, "")
+        if spanish != checked:
+            gender, other = _regender(spanish, cue, ask=ask) if spanish else (None, "")
 
         return Variant(
             form=evidence.form,

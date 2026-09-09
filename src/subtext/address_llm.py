@@ -31,7 +31,7 @@ from .address import Address
 
 #: Lines per call. Large enough that a cue costs one or two calls; small enough that the
 #: model does not lose the numbering, which is the only thing tying answers back to lines.
-BATCH = 60
+BATCH = 20
 
 TAG_INSTRUCTION = """\
 Each numbered line below is Spanish subtitle dialogue. For each one, say how it addresses
@@ -89,12 +89,27 @@ def _parse(reply: str, count: int) -> list[Address]:
 
 
 def tag_batch(lines: Sequence[str], *, ask, batch: int = BATCH) -> list[Address]:
-    """Label every line with the form of address it uses. One call per `batch` lines."""
-    out: list[Address] = []
-    for start in range(0, len(lines), batch):
-        chunk = lines[start:start + batch]
+    """Label every line with the form of address it uses. One call per `batch` lines.
+
+    The batches run at once. A new cue retrieves a few hundred precedents the cache has
+    not seen, and one call over sixty of them was measured at 7 s -- the longest single
+    step of a request -- because the model writes sixty answers in series. Three calls
+    over twenty each write them in parallel and the order of `lines` is kept.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    chunks = [lines[start:start + batch] for start in range(0, len(lines), batch)]
+
+    def one(chunk):
         numbered = "\n".join(f"{i + 1}. {line}" for i, line in enumerate(chunk))
-        out.extend(_parse(ask(f"{TAG_INSTRUCTION}\n{numbered}\n"), len(chunk)))
+        return _parse(ask(f"{TAG_INSTRUCTION}\n{numbered}\n"), len(chunk))
+
+    if len(chunks) <= 1:
+        return one(chunks[0]) if chunks else []
+    out: list[Address] = []
+    with ThreadPoolExecutor(max_workers=min(len(chunks), 6)) as pool:
+        for labels in pool.map(one, chunks):
+            out.extend(labels)
     return out
 
 

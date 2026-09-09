@@ -86,10 +86,15 @@ class _Bridge:
         raise RuntimeError(f"unexpected reply from {QUERY_TOOL}: {text[:200]}")
 
     def query(self, sql: str) -> list[list[Any]]:
-        with self._lock:
-            if self._session is None:
-                self._submit(self._open())
-            return self._submit(self._call(sql))
+        # The lock guards opening the session, not the calls: MCP numbers its requests,
+        # so one session answers several at once, and the phrase channel's ten queries
+        # used to wait for each other here -- 4 s of a request that spends most of that
+        # waiting on the network.
+        if self._session is None:
+            with self._lock:
+                if self._session is None:
+                    self._submit(self._open())
+        return self._submit(self._call(sql))
 
     def close(self) -> None:
         if self._stack is not None:

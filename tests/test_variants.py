@@ -73,20 +73,40 @@ def test_an_unreadable_check_never_fails_a_line(reply):
     assert well_formed and fix == "" and form is Address.UNMARKED
 
 
+def scripted(*, translations, checks, gender="NONE"):
+    """A fake model that answers by what it is asked, not by turn order.
+
+    The grammar check and the gender question run concurrently since 2026-09-09, so a
+    reply script in a fixed order would be answered in whichever order the threads
+    arrive. Each kind of prompt has its own queue instead; the translation queue serves
+    the first attempt and then the retry.
+    """
+    translations, checks = iter(translations), iter(checks)
+
+    def ask(prompt: str) -> str:
+        head = prompt.strip().splitlines()[0]
+        if head.startswith("Check one Spanish subtitle line"):
+            return next(checks)
+        if head.startswith("You are given one Mexican Spanish subtitle line"):
+            return gender
+        return next(translations)
+
+    return ask
+
+
 def test_a_bad_conjugation_is_sent_back_once_and_python_decides():
     """`Adelante, alégranme el día.` passed the register gate clean: every word looked
     Mexican and the conjugation was invented. Nothing else in the pipeline reads morphology,
     and the corpus cannot stand in — `alégrame`, `cuídese` and `cállense` occur zero times
     in 718,925 lines and are all correct Spanish."""
-    replies = iter([
-        "Adelante, alégranme el día.",                                  # first attempt
-        '{"addresses": "ustedes", "well_formed": false, "fix": "alégrenme"}',
-        "Adelante, alégrenme el día.",                                  # retry
-        '{"addresses": "ustedes", "well_formed": true, "fix": ""}',
-        "NONE",   # nobody's gender is marked, so there is nothing to flip
-    ])
+    ask = scripted(
+        translations=["Adelante, alégranme el día.",      # first attempt
+                      "Adelante, alégrenme el día."],     # retry
+        checks=['{"addresses": "ustedes", "well_formed": false, "fix": "alégrenme"}',
+                '{"addresses": "ustedes", "well_formed": true, "fix": ""}'],
+    )
     variants = translate_variants(
-        "Go ahead, make my day", ask=lambda _p: next(replies),
+        "Go ahead, make my day", ask=ask,
         tag_forms=lambda lines: [Address.USTEDES] * len(lines))
     assert variants and variants[0].spanish == "Adelante, alégrenme el día."
     assert variants[0].well_formed
@@ -94,15 +114,13 @@ def test_a_bad_conjugation_is_sent_back_once_and_python_decides():
 
 def test_a_line_still_wrong_after_the_retry_is_returned_flagged():
     """Dropping it would hide the failure from the reviewer, who is the point."""
-    replies = iter([
-        "Adelante, alégranme el día.",
-        '{"addresses": "ustedes", "well_formed": false, "fix": ""}',
-        "Adelante, alégranme el día.",
-        '{"addresses": "ustedes", "well_formed": false, "fix": ""}',
-        "NONE",
-    ])
+    ask = scripted(
+        translations=["Adelante, alégranme el día.", "Adelante, alégranme el día."],
+        checks=['{"addresses": "ustedes", "well_formed": false, "fix": ""}',
+                '{"addresses": "ustedes", "well_formed": false, "fix": ""}'],
+    )
     variants = translate_variants(
-        "Go ahead, make my day", ask=lambda _p: next(replies),
+        "Go ahead, make my day", ask=ask,
         tag_forms=lambda lines: [Address.USTEDES] * len(lines))
     assert variants and not variants[0].well_formed
 
