@@ -287,14 +287,17 @@ let gender = 'masculine';
 let data = null, chosen = null;
 
 // Shown when the corpus and the model both come back with nothing. Two different things
-// reach it -- an English line every form of address refused, and a line that is not
-// English at all -- and the person cannot tell them apart. The alphabet check in
-// `guard.clean_cue` catches other scripts, but not French or any other language written
-// in this one: those arrive with zero corpus n-grams. So the message states the outcome
-// and then names the likeliest cause the person can act on.
-const NOTHING = '<p class="status">Nothing came back for this line — no form of address '
-  + 'survived. Check that it is an English subtitle line: this localises English into '
-  + 'Mexican Spanish.</p>';
+// reach it and the payload cannot tell them apart: a line that is not English -- the
+// alphabet check in `guard.clean_cue` catches other scripts, but not French, which arrives
+// with junk tokens -- and an English line whose every reading the model declined. The
+// second is real: `- Massa, why don\'t you stay here?` returns NONE for both of its forms,
+// 3 of the 102 film-set lines do the same, and telling that person to check their English
+// would be a lie. So the outcome is stated first and the language named as a likelihood,
+// not as a diagnosis.
+const NOTHING = '<p class="status">Nothing came back for this line. The corpus has no '
+  + 'reading it can support, and every form of address was declined. If the line is not '
+  + 'English, that is the likeliest reason — this localises English into Mexican Spanish.'
+  + '</p>';
 
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

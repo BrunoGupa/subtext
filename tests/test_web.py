@@ -123,3 +123,17 @@ def test_the_cache_evicts_the_oldest_and_keeps_what_is_asked_for_again():
     assert len(_cache) == _CACHE_MAX
     assert "line 0" not in _cache
     assert f"line {_CACHE_MAX + 9}" in _cache
+
+
+# --- the caller Gemini answers through ---------------------------------------------
+
+def test_a_transient_failure_is_retried_and_a_real_one_is_not():
+    """Two of the 102 film-set lines came back 503 UNAVAILABLE, which is 2% of a run
+    reaching the page as an error for a reason that is not ours and does not persist.
+    Everything else must fail at once: retrying a bad key hides a fault behind a delay."""
+    from subtext.gemini import is_transient
+
+    assert is_transient(RuntimeError("503 UNAVAILABLE. The service is currently unavailable."))
+    assert is_transient(RuntimeError("429 RESOURCE_EXHAUSTED"))
+    assert not is_transient(RuntimeError("400 INVALID_ARGUMENT: API key not valid"))
+    assert not is_transient(RuntimeError("403 PERMISSION_DENIED"))

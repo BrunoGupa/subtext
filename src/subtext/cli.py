@@ -387,35 +387,9 @@ def cmd_localise(args: argparse.Namespace) -> int:
 
 
 def _asker(model: str | None = None):
-    """One-shot Gemini call with the project's generation config."""
-    from google import genai
-    from .config import settings
-    from google.genai import types
-
-    client = genai.Client()
-    name = model or settings().gemini_model
-    config = types.GenerateContentConfig(
-        temperature=0.2, max_output_tokens=2048,
-        thinking_config=types.ThinkingConfig(thinking_budget=0),
-    )
-
-    def ask(prompt: str) -> str:
-        from .variants import BLOCKED
-
-        response = client.models.generate_content(
-            model=name, contents=prompt, config=config)
-        text = response.text or ""
-        if text.strip():
-            return text
-        # No text. Say why, so a blank line downstream can be explained rather than read
-        # as the pipeline declining the reading -- which is a different event entirely.
-        reason = getattr(getattr(response, "prompt_feedback", None), "block_reason", None)
-        if reason is None:
-            candidates = getattr(response, "candidates", None) or []
-            reason = getattr(candidates[0], "finish_reason", None) if candidates else None
-        return f"{BLOCKED} {getattr(reason, 'name', reason) or 'empty response'}"
-
-    return ask
+    """The project's Gemini caller. Lives in `gemini.py` so the web shares it."""
+    from .gemini import asker
+    return asker(model)
 
 
 def build_parser() -> argparse.ArgumentParser:

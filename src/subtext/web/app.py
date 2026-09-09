@@ -157,21 +157,13 @@ def _budget_ok() -> bool:
 
 
 def _asker(model: str | None = None):
-    from google import genai
-    from google.genai import types
+    """The project's Gemini caller -- the same one the CLI uses.
 
-    client = genai.Client()
-    name = model or settings().gemini_model
-    config = types.GenerateContentConfig(
-        temperature=0.2, max_output_tokens=2048,
-        thinking_config=types.ThinkingConfig(thinking_budget=0),
-    )
-
-    def ask(prompt: str) -> str:
-        return client.models.generate_content(
-            model=name, contents=prompt, config=config).text or ""
-
-    return ask
+    This used to be a second, thinner copy that never produced a `BLOCKED` reason, so the
+    path a judge exercises reported every provider block as "no reason given".
+    """
+    from ..gemini import asker
+    return asker(model)
 
 
 def _localise(line: str) -> dict[str, Any]:
