@@ -56,6 +56,9 @@ input::placeholder{color:var(--faint)}
 .go:hover{opacity:.85}
 .go:disabled{opacity:.4;cursor:default}
 :focus-visible{outline:2px solid var(--anchor);outline-offset:2px}
+/* The form draws its own focus state (border + ring) around the whole box; a second ring
+   on the input inside it sat 5px off the first and read as a misaligned frame. */
+input:focus-visible{outline:none}
 
 .limit{margin:9px 0 0;font-size:13.5px;color:var(--anchor)}
 
