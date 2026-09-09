@@ -57,6 +57,13 @@ input::placeholder{color:var(--faint)}
 .go:disabled{opacity:.4;cursor:default}
 :focus-visible{outline:2px solid var(--anchor);outline-offset:2px}
 
+.limit{margin:9px 0 0;font-size:13.5px;color:var(--anchor)}
+
+/* `hidden` is an attribute, `display` is a rule, and a rule beats an attribute: the film
+   panel carries both `hidden` and `.examples`, so it drew as an empty grey box on arrival
+   until this line existed. Anything hidden is hidden, whatever else claims otherwise. */
+[hidden]{display:none!important}
+
 .examples{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;align-items:center}
 .examples span{font-size:12.5px;color:var(--faint);margin-right:2px}
 .ex{font:inherit;font-size:13px;background:transparent;color:var(--muted);
@@ -134,6 +141,9 @@ footer a{color:var(--muted)}
 .card b + p{margin-top:-4px}
 .source{margin:12px 0 0;font-size:11.5px;color:var(--faint);max-width:78ch}
 .refs{margin:16px 0 0;padding-left:18px;font-size:11.5px;color:var(--faint);max-width:78ch}
+.refs li:target{color:var(--ink)}
+sup a{color:var(--faint);text-decoration:none;font-size:10px;padding:0 1px}
+sup a:hover{color:var(--anchor);text-decoration:underline}
 .refs li{margin:0 0 5px}
 .refs a{color:var(--faint);text-decoration:underline}
 code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 4px;border-radius:2px}
@@ -150,22 +160,24 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
   Nothing is invented — every answer cites the line somebody really wrote.</p>
 
   <form id="f" autocomplete="off">
-    <input id="q" name="q" placeholder="Shut up!" aria-label="English subtitle line" required>
+    <input id="q" name="q" placeholder="Nice jacket." aria-label="English subtitle line" required>
     <button class="go" id="go" type="submit">Localise</button>
   </form>
+  <p class="limit" id="limit" role="status" aria-live="polite" hidden></p>
 
   <div class="examples">
     <span>Try:</span>
-    <button class="ex" type="button">Shut up!</button>
+    <button class="ex" type="button">Come with me if you want to live.</button>
+    <button class="ex" type="button">Are you talking to me?</button>
+    <button class="ex" type="button">Nice jacket.</button>
     <button class="ex" type="button">Get in the car.</button>
-    <button class="ex" type="button">You're so tired.</button>
-    <button class="ex" type="button">What the fuck?</button>
+    <button class="ex" type="button">Are you sure?</button>
   </div>
 
   <div class="examples films">
     <span>Or a line the literature calls among the hardest to translate:</span>
-    <button class="film" type="button" data-film="pulp" aria-expanded="false">Pulp Fiction</button>
-    <button class="film" type="button" data-film="deadpool" aria-expanded="false">Deadpool</button>
+    <button class="film" type="button" data-film="pulp" aria-expanded="false">Pulp Fiction</button><sup><a href="#ref1" aria-label="reference 1, Ávila-Cabrera 2015">1</a></sup>
+    <button class="film" type="button" data-film="deadpool" aria-expanded="false">Deadpool</button><sup><a href="#ref2" aria-label="reference 2, Rohmawati 2021">2</a></sup>
   </div>
   <!-- Held back rather than shown: these lines carry the load the studies measure, and a
        reader meets them once they have asked for the film, not on arrival. -->
@@ -209,11 +221,11 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     </div>
   </div>
   <ol class="refs">
-    <li>Ávila-Cabrera, J. J. (2015). “Subtitling Tarantino’s offensive and taboo dialogue
+    <li id="ref1">Ávila-Cabrera, J. J. (2015). “Subtitling Tarantino’s offensive and taboo dialogue
       exchanges into European Spanish: the case of <em>Pulp Fiction</em>.”
       <i>Revista de Lingüística y Lenguas Aplicadas</i> 10: 1–11.
       <a href="http://dx.doi.org/10.4995/rlyla.2015.3419">10.4995/rlyla.2015.3419</a></li>
-    <li>Rohmawati, I. (2021). “Subtitling Strategies of Swear Words in Deadpool One &amp;
+    <li id="ref2">Rohmawati, I. (2021). “Subtitling Strategies of Swear Words in Deadpool One &amp;
       Deadpool Two Film.” <i>Indonesian Journal of EFL and Linguistics</i> 6(1): 219–232.</li>
   </ol>
   <p class="source"><b>line 88388575</b> names a row of the corpus — its <code>pair_id</code>,
@@ -225,7 +237,34 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
 <script>
 const f = document.getElementById('f'), q = document.getElementById('q'),
       go = document.getElementById('go'), out = document.getElementById('out'),
-      bar = document.getElementById('bar');
+      bar = document.getElementById('bar'), limit = document.getElementById('limit');
+
+// The same two bounds the server enforces in `guard.clean_cue`, said here so the person
+// sees them while typing rather than after a round trip. The server still decides -- this
+// is a courtesy, not the gate -- but a paste of a whole paragraph should not look like it
+// was accepted and then quietly fail.
+const MAX_CHARS = 120, MAX_WORDS = 12;
+
+function overLimit(){
+  const line = q.value.trim();
+  const words = line ? line.split(/\s+/).length : 0;
+  if (line.length > MAX_CHARS)
+    return `That is ${line.length} characters. A subtitle line is at most ${MAX_CHARS}.`;
+  if (words > MAX_WORDS)
+    return `That is ${words} words. A subtitle line is at most ${MAX_WORDS} — `
+         + `localise it one line at a time.`;
+  return '';
+}
+
+function checkLimit(){
+  const why = overLimit();
+  limit.textContent = why;
+  limit.hidden = !why;
+  go.disabled = !!why;
+  return !why;
+}
+
+q.addEventListener('input', checkLimit);
 
 // The Spanish paradigm in the order a speaker recites it. `usted` sits in the third-person
 // slot because that is the morphology it takes; `ustedes` in the second plural, which is
@@ -246,6 +285,16 @@ const labelOf = id => PARADIGM.find(p => p.id === id).label;
 // cannot settle the gender of a `you`, which is the whole reason there is a button.
 let gender = 'masculine';
 let data = null, chosen = null;
+
+// Shown when the corpus and the model both come back with nothing. Two different things
+// reach it -- an English line every form of address refused, and a line that is not
+// English at all -- and the person cannot tell them apart. The alphabet check in
+// `guard.clean_cue` catches other scripts, but not French or any other language written
+// in this one: those arrive with zero corpus n-grams. So the message states the outcome
+// and then names the likeliest cause the person can act on.
+const NOTHING = '<p class="status">Nothing came back for this line — no form of address '
+  + 'survived. Check that it is an English subtitle line: this localises English into '
+  + 'Mexican Spanish.</p>';
 
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -341,7 +390,14 @@ function render(payload){
   if (data.error){ bar.classList.remove('on'); out.innerHTML = `<p class="status">${esc(data.error)}</p>`; return; }
   if (!data.readings.length){
     bar.classList.remove('on');
-    out.innerHTML = '<p class="status">No reading survived — every form of address was refused for this line.</p>';
+    out.innerHTML = NOTHING;
+    return;
+  }
+  // One form declining is a result, and `draw` says which and why -- `usted` refusing a
+  // line written for `tú` is the system working. Every form declining is not a result.
+  if (data.readings.every(r => !r.answered)){
+    bar.classList.remove('on');
+    out.innerHTML = NOTHING;
     return;
   }
   controls();
@@ -392,7 +448,7 @@ document.querySelectorAll('.film').forEach(b => b.addEventListener('click', () =
 f.addEventListener('submit', async e => {
   e.preventDefault();
   const line = q.value.trim();
-  if (!line) return;
+  if (!line || !checkLimit()) return;
   go.disabled = true;
   bar.classList.remove('on');
   out.innerHTML = '<p class="status">Searching the corpus…</p>';
@@ -406,7 +462,7 @@ f.addEventListener('submit', async e => {
   } catch (err){
     out.innerHTML = `<p class="status">Could not reach the corpus: ${esc(err.message)}.
       Check that ClickHouse is up and that GOOGLE_API_KEY is set.</p>`;
-  } finally { go.disabled = false; }
+  } finally { checkLimit(); }
 });
 </script>
 </body>
