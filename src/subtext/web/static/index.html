@@ -1,161 +1,401 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Subtext</title>
+<title>Subtext — the faithful subtitle track</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,400&display=swap">
 <style>
 :root{
-  --ground:#FBFAF7; --ink:#161A18; --muted:#6A726E; --faint:#9AA19D;
-  --rule:#E4E2DA; --field:#FFFFFF; --mx:#1C6552; --mx-soft:#EAF2EE;
-  --warn:#8A6A1F; --bad:#9E3437;
+  --ground:#F0F4F3; --surface:#FFFFFF; --sunk:#E7EDEB;
+  --ink:#131A19; --muted:#596B68; --faint:#849693; --rule:#D7E0DE;
+  --anchor:#0D6A57; --anchor-bg:#DCEDE8;
+  --weak:#96461F; --weak-bg:#F6E5DA;
+  --none:#5B4A86; --none-bg:#E8E4F2;
   --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
   --serif:"IBM Plex Serif",Georgia,serif;
-  --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ground:#101312; --ink:#EAEBE5; --muted:#98A19C; --faint:#6E7773;
-  --rule:#272C2A; --field:#181C1A; --mx:#67C4A6; --mx-soft:#152A25;
-  --warn:#D6B45E; --bad:#E2807C;
+  --ground:#0D1211; --surface:#141A19; --sunk:#1B2322;
+  --ink:#E5ECEA; --muted:#93A5A2; --faint:#6C7E7B; --rule:#242E2C;
+  --anchor:#4ECDB0; --anchor-bg:#0F2A25;
+  --weak:#E28A5C; --weak-bg:#2C1B12;
+  --none:#A99AD8; --none-bg:#1E1930;
 }}
 :root[data-theme="dark"]{
-  --ground:#101312; --ink:#EAEBE5; --muted:#98A19C; --faint:#6E7773;
-  --rule:#272C2A; --field:#181C1A; --mx:#67C4A6; --mx-soft:#152A25;
-  --warn:#D6B45E; --bad:#E2807C;
+  --ground:#0D1211; --surface:#141A19; --sunk:#1B2322;
+  --ink:#E5ECEA; --muted:#93A5A2; --faint:#6C7E7B; --rule:#242E2C;
+  --anchor:#4ECDB0; --anchor-bg:#0F2A25;
+  --weak:#E28A5C; --weak-bg:#2C1B12;
+  --none:#A99AD8; --none-bg:#1E1930;
 }
 *{box-sizing:border-box}
-html,body{height:100%}
-body{background:var(--ground);color:var(--ink);font-family:var(--sans);
-  font-weight:300;line-height:1.55;-webkit-font-smoothing:antialiased;
-  display:flex;flex-direction:column;align-items:center;}
-main{width:100%;max-width:680px;padding:0 24px;flex:1;
-  display:flex;flex-direction:column;justify-content:center;
-  padding-top:14vh;padding-bottom:60px;}
-.brand{font-family:var(--serif);font-size:15px;letter-spacing:.02em;
-  color:var(--muted);margin:0 0 6px}
-h1{font-family:var(--serif);font-weight:300;font-size:clamp(30px,5.4vw,46px);
-  line-height:1.15;letter-spacing:-.02em;margin:0 0 14px;text-wrap:balance}
-h1 em{font-style:italic;color:var(--mx)}
-.lede{color:var(--muted);margin:0 0 34px;max-width:52ch;font-size:16px}
-form{position:relative;display:flex;align-items:center;gap:10px;
-  background:var(--field);border:1px solid var(--rule);border-radius:999px;
-  padding:6px 6px 6px 22px;transition:border-color .15s,box-shadow .15s}
-form:focus-within{border-color:var(--mx);box-shadow:0 0 0 4px var(--mx-soft)}
-input{flex:1;border:0;background:transparent;color:var(--ink);
-  font:inherit;font-size:17px;padding:12px 0;outline:none;min-width:0}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.55;
+     -webkit-font-smoothing:antialiased;margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px}
+
+header{padding:52px 0 26px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--faint);margin:0 0 12px}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.6vw,42px);line-height:1.14;
+   margin:0 0 14px;text-wrap:balance;letter-spacing:-.01em}
+h1 em{font-style:italic;color:var(--anchor)}
+.lede{color:var(--muted);margin:0;max-width:60ch;font-size:15.5px}
+
+form{display:flex;align-items:center;gap:10px;background:var(--surface);
+     border:1px solid var(--rule);border-radius:3px;padding:5px 5px 5px 18px;margin:26px 0 0;
+     transition:border-color .15s,box-shadow .15s}
+form:focus-within{border-color:var(--anchor);box-shadow:0 0 0 3px var(--anchor-bg)}
+input{flex:1;border:0;background:transparent;color:var(--ink);font:inherit;font-size:17px;
+      padding:12px 0;outline:none;min-width:0}
 input::placeholder{color:var(--faint)}
-button{border:0;border-radius:999px;background:var(--ink);color:var(--ground);
-  font:inherit;font-size:14px;font-weight:500;padding:11px 22px;cursor:pointer;
-  white-space:nowrap;transition:opacity .15s}
-button:hover{opacity:.85}
-button:disabled{opacity:.4;cursor:default}
-button:focus-visible,a:focus-visible{outline:2px solid var(--mx);outline-offset:2px}
-.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
-.examples span{font-size:13px;color:var(--faint);align-self:center;margin-right:2px}
+.go{border:0;border-radius:2px;background:var(--ink);color:var(--ground);font:inherit;
+    font-size:14px;font-weight:500;padding:11px 20px;cursor:pointer;white-space:nowrap}
+.go:hover{opacity:.85}
+.go:disabled{opacity:.4;cursor:default}
+:focus-visible{outline:2px solid var(--anchor);outline-offset:2px}
+
+.examples{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px;align-items:center}
+.examples span{font-size:12.5px;color:var(--faint);margin-right:2px}
 .ex{font:inherit;font-size:13px;background:transparent;color:var(--muted);
-  border:1px solid var(--rule);border-radius:999px;padding:5px 13px;cursor:pointer}
-.ex:hover{border-color:var(--mx);color:var(--mx)}
-#out{margin-top:40px}
-.status{color:var(--muted);font-size:15px}
-.reading{border-top:1px solid var(--rule);padding:20px 0}
-.reading:last-child{padding-bottom:0}
-.form-tag{font-family:var(--mono);font-size:11px;color:var(--mx);
-  border:1px solid var(--mx);border-radius:3px;padding:1px 6px;
-  letter-spacing:.04em;vertical-align:3px;margin-right:9px}
-.es{font-family:var(--serif);font-size:23px;font-weight:400;
-  display:inline;line-height:1.35}
-.cites{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:9px;
-  font-variant-numeric:tabular-nums}
-.flag{display:inline-block;font-size:11.5px;border-radius:3px;padding:2px 8px;
-  margin:9px 6px 0 0;border:1px solid}
-.flag.warn{color:var(--warn);border-color:var(--warn)}
-.flag.bad{color:var(--bad);border-color:var(--bad)}
-footer{width:100%;max-width:680px;padding:20px 24px 34px;color:var(--faint);
-  font-size:12.5px;border-top:1px solid var(--rule)}
+    border:1px solid var(--rule);border-radius:2px;padding:5px 12px;cursor:pointer}
+.ex:hover{border-color:var(--anchor);color:var(--anchor)}
+.films{margin-top:9px}
+.film{font:inherit;font-size:13px;font-family:var(--serif);font-style:italic;
+      background:transparent;color:var(--muted);border:1px solid var(--rule);
+      border-radius:2px;padding:5px 13px;cursor:pointer}
+.film:hover{border-color:var(--anchor);color:var(--anchor)}
+.film[aria-expanded="true"]{border-color:var(--anchor);color:var(--anchor);background:var(--anchor-bg)}
+.reel{margin-top:10px;padding:11px 13px;background:var(--sunk);border-radius:3px;
+      align-items:flex-start}
+.reel span:first-child{font-size:11.5px;color:var(--faint);width:100%;margin:0 0 7px}
+.reelrow{display:flex;flex-wrap:wrap;gap:7px}
+
+/* The controls only exist once there is something to control, and only for the axes the
+   English actually left open -- offering a choice the source already made is noise. */
+.bar{display:none;gap:16px;align-items:baseline;flex-wrap:wrap;margin:30px 0 0;
+     padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.bar.on{display:flex}
+.barlab{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+        color:var(--faint);white-space:nowrap}
+.group{display:flex;flex-wrap:wrap;gap:6px}
+.group button{font:inherit;font-size:13px;padding:5px 12px;border-radius:2px;cursor:pointer;
+    background:transparent;color:var(--muted);border:1px solid var(--rule);
+    display:flex;gap:7px;align-items:baseline}
+.group button .n{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.group button:hover{border-color:var(--anchor);color:var(--ink)}
+.group button[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.group button[aria-pressed="true"] .n{color:var(--ground);opacity:.6}
+.fixed{font-size:12.5px;color:var(--faint)}
+
+#out{margin-top:26px;padding-bottom:56px}
+.status{color:var(--muted);font-size:15px;margin:26px 0}
+
+.main{padding:22px 0 0}
+.formrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.05em;padding:2px 7px;
+     border-radius:2px;background:var(--sunk);color:var(--muted)}
+.es{font-family:var(--serif);font-size:clamp(24px,3.6vw,31px);line-height:1.3;margin:0;
+    letter-spacing:-.01em}
+.es.empty{font-family:var(--mono);font-size:15px;color:var(--none)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+.chip{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:2px;
+      font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.a{background:var(--anchor-bg);color:var(--anchor)}
+.chip.w{background:var(--weak-bg);color:var(--weak)}
+.chip.n{background:var(--none-bg);color:var(--none)}
+.chip.q{background:var(--sunk);color:var(--muted)}
+.ids{font-family:var(--mono);font-size:11px;color:var(--faint);margin:10px 0 0;
+     word-spacing:.3em;overflow-wrap:anywhere}
+
+.altlab{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;
+        color:var(--faint);margin:26px 0 0}
+.alts{margin:8px 0 0;border-top:1px solid var(--rule)}
+.alt{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:baseline;
+     padding:11px 0;border-bottom:1px solid var(--rule)}
+.alt .t{font-size:16px;color:var(--muted);min-width:0}
+.alt .t .src{display:block;font-family:var(--serif);font-style:italic;font-size:12.5px;
+             color:var(--faint);margin-top:2px}
+.alt .s{font-family:var(--mono);font-size:10.5px;color:var(--faint);white-space:nowrap;
+        text-align:right;font-variant-numeric:tabular-nums}
+
+footer{border-top:1px solid var(--rule);padding:26px 0 44px;color:var(--muted);font-size:12.5px}
 footer a{color:var(--muted)}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(186px,1fr));gap:1px;
+        background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.card{background:var(--surface);padding:14px 15px 15px}
+.card .chip{margin-bottom:9px}
+.card b{display:block;font-size:12.5px;font-weight:600;color:var(--ink);margin-bottom:3px}
+.card p{margin:0;font-size:12px;line-height:1.45;color:var(--muted)}
+.source{margin:16px 0 0;font-size:11.5px;color:var(--faint);max-width:74ch}
+code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 4px;border-radius:2px}
+@media (max-width:620px){.alt{grid-template-columns:1fr}.alt .s{text-align:left}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<main>
-  <p class="brand">Subtext</p>
-  <h1>Escribe una línea en inglés.<br>Te digo cómo la escribió<br>un subtitulador <em>mexicano</em>.</h1>
-  <p class="lede">Sobre 335.800 líneas de subtítulo de producciones mexicanas. Nada se inventa:
-  cada respuesta viene con el <code>pair_id</code> de la línea que alguien escribió de verdad.</p>
+<div class="wrap">
+<header>
+  <p class="eyebrow">The faithful subtitle track · Mexican Spanish</p>
+  <h1>Type an English line.<br>See how a Mexican subtitler <em>actually wrote it</em>.</h1>
+  <p class="lede">Retrieved from 335,800 subtitle lines written by Mexican translators.
+  Nothing is invented — every answer cites the line somebody really wrote.</p>
 
   <form id="f" autocomplete="off">
-    <input id="q" name="q" placeholder="Shut up!" aria-label="Línea en inglés" required>
-    <button id="go" type="submit">Traducir</button>
+    <input id="q" name="q" placeholder="Shut up!" aria-label="English subtitle line" required>
+    <button class="go" id="go" type="submit">Localise</button>
   </form>
 
   <div class="examples">
-    <span>Prueba:</span>
+    <span>Try:</span>
+    <button class="ex" type="button">Shut up!</button>
     <button class="ex" type="button">Get in the car.</button>
+    <button class="ex" type="button">You're so tired.</button>
     <button class="ex" type="button">What the fuck?</button>
-    <button class="ex" type="button">Fuck you!</button>
-    <button class="ex" type="button">Come here.</button>
   </div>
 
-  <section id="out" aria-live="polite"></section>
-</main>
+  <div class="examples films">
+    <span>Or a film the researchers picked:</span>
+    <button class="film" type="button" data-film="pulp" aria-expanded="false">Pulp Fiction</button>
+    <button class="film" type="button" data-film="deadpool" aria-expanded="false">Deadpool</button>
+  </div>
+  <!-- Held back rather than shown: these lines carry the load the studies measure, and a
+       reader meets them once they have asked for the film, not on arrival. -->
+  <div class="examples reel" id="reel" hidden>
+    <span id="reelnote"></span>
+    <span class="reelrow" id="reelrow"></span>
+  </div>
+</header>
+
+<div class="bar" id="bar">
+  <span class="barlab" id="plab">Person</span>
+  <div class="group" id="persons"></div>
+  <span class="barlab" id="glab">Gender</span>
+  <div class="group" id="genders"></div>
+  <span class="fixed" id="fixednote"></span>
+</div>
+
+<section id="out" aria-live="polite"></section>
 
 <footer>
-  Corpus OPUS OpenSubtitles · <a href="http://www.opensubtitles.org/">opensubtitles.org</a> ·
-  Lison &amp; Tiedemann (2016). El inglés <em>you</em> es tú, usted y ustedes a la vez, así que
-  se devuelven todas las lecturas que el corpus atestigua, no una.
+  <div class="legend">
+    <div class="card">
+      <span class="chip a">agreed · cansado · 1749×</span>
+      <b>The corpus agrees</b>
+      <p>What every line carrying that phrase puts in its Spanish — and how much more often
+      it appears there than in the corpus at large.</p>
+    </div>
+    <div class="card">
+      <span class="chip q">nearest 0.94</span>
+      <b>Closest line by meaning</b>
+      <p>How near the nearest thing anyone actually wrote is to yours.</p>
+    </div>
+    <div class="card">
+      <span class="chip w">weak</span>
+      <b>Nothing came close</b>
+      <p>The line cited beside it supports less than it appears to. A guess and a citation
+      never look alike here.</p>
+    </div>
+    <div class="card">
+      <span class="chip q">Also attested</span>
+      <b>Quotations, not output</b>
+      <p>Written by a Mexican translator, shown as written. Never re-gendered — that would
+      keep the citation and move the line it points at.</p>
+    </div>
+  </div>
+  <p class="source"><b>line 88388575</b> is a row of the corpus — its <code>pair_id</code>,
+  stable across rebuilds, so any answer here can be checked against the line itself. Corpus:
+  OPUS OpenSubtitles · <a href="http://www.opensubtitles.org/">opensubtitles.org</a> ·
+  Lison &amp; Tiedemann (2016).</p>
 </footer>
+</div>
 
 <script>
 const f = document.getElementById('f'), q = document.getElementById('q'),
-      go = document.getElementById('go'), out = document.getElementById('out');
+      go = document.getElementById('go'), out = document.getElementById('out'),
+      bar = document.getElementById('bar');
 
-document.querySelectorAll('.ex').forEach(b =>
-  b.addEventListener('click', () => { q.value = b.textContent; f.requestSubmit(); }));
+// The Spanish paradigm in the order a speaker recites it. `usted` sits in the third-person
+// slot because that is the morphology it takes; `ustedes` in the second plural, which is
+// where Latin American Spanish teaches it.
+const PARADIGM = [
+  {id:'yo',       n:'1sg', label:'yo',       forms:[]},
+  {id:'tú',       n:'2sg', label:'tú',       forms:['tú']},
+  {id:'usted',    n:'3sg', label:'usted',    forms:['usted']},
+  {id:'nosotros', n:'1pl', label:'nosotros', forms:[]},
+  {id:'ustedes',  n:'2pl', label:'ustedes',  forms:['ustedes']},
+  {id:'generic',  n:'—',   label:'generic',  forms:['unmarked']},
+];
+const ORDER = PARADIGM.map(p => p.id);
+const slotOf = form => (PARADIGM.find(p => p.forms.includes(form)) || PARADIGM[5]).id;
+const labelOf = id => PARADIGM.find(p => p.id === id).label;
+
+// Masculine by default, and that is this page's choice rather than the corpus's: the corpus
+// cannot settle the gender of a `you`, which is the whole reason there is a button.
+let gender = 'masculine';
+let data = null, chosen = null;
 
 const esc = s => String(s).replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-function render(data) {
-  if (data.error) { out.innerHTML = `<p class="status">${esc(data.error)}</p>`; return; }
-  if (!data.readings.length) {
-    out.innerHTML = '<p class="status">El corpus no tiene nada para esta línea.</p>'; return;
-  }
-  out.innerHTML = data.readings.map(r => {
-    const tag = r.form === 'unmarked' ? '' : `<span class="form-tag">${esc(r.form)}</span>`;
-    const cites = r.pair_ids.length
-      ? r.pair_ids.map(p => `pair_id ${p}`).join(' · ')
-      : 'sin cita';
-    const flags = [];
-    if (!r.grounded) flags.push(['bad', 'sin precedente en el corpus']);
-    else if (r.weak) flags.push(['warn', `anclaje débil · ${r.similarity}`]);
-    if (!r.well_formed) flags.push(['bad', 'gramática']);
-    if (r.not_mexican.length) flags.push(['bad', 'registro: ' + r.not_mexican.join(', ')]);
-    return `<article class="reading">
-      <p style="margin:0">${tag}<span class="es">${esc(r.spanish)}</span></p>
-      <p class="cites">${esc(cites)}</p>
-      ${flags.map(([k, t]) => `<span class="flag ${k}">${esc(t)}</span>`).join('')}
-    </article>`;
-  }).join('');
+// A reading carries the gender it was written in plus the same line flipped; anything that
+// marks nobody's gender never moves.
+function textFor(r){
+  if (!r.gender || !r.other_gender) return r.spanish;
+  const isMasc = r.gender === 'masculino' || r.gender === 'masculine';
+  return (isMasc ? 'masculine' : 'feminine') === gender ? r.spanish : r.other_gender;
 }
+
+function chipsFor(r){
+  const out = [];
+  (data.agreed || []).filter(a => (r.agreed || []).includes(a.spanish)).slice(0, 2)
+    .forEach(a => out.push(`<span class="chip a">agreed · <b>${esc(a.spanish)}</b> · ${Math.round(a.enrichment)}×</span>`));
+  if (r.similarity > 0) out.push(`<span class="chip q">nearest ${r.similarity.toFixed(2)}</span>`);
+  if (r.weak) out.push('<span class="chip w">weak</span>');
+  if (!r.grounded) out.push('<span class="chip n">no precedent</span>');
+  if (!r.well_formed) out.push('<span class="chip w">grammar</span>');
+  if ((r.not_mexican || []).length) out.push(`<span class="chip w">not Mexican: ${esc(r.not_mexican.join(', '))}</span>`);
+  return out.join('');
+}
+
+function altsFor(r){
+  if (!(r.alternatives || []).length) return '';
+  return `<p class="altlab">Also attested</p><div class="alts">` + r.alternatives.map(a =>
+    `<div class="alt">
+       <span class="t">${esc(a.spanish)}<span class="src">from: ${esc(a.english)}</span></span>
+       <span class="s">${a.similarity.toFixed(2)} · ${a.times}/${a.of} · line ${a.pair_id}</span>
+     </div>`).join('') + `</div>`;
+}
+
+function draw(){
+  const r = data.readings.find(x => slotOf(x.form) === chosen) || data.readings[0];
+  if (!r.answered){
+    out.innerHTML = `<div class="main"><p class="es empty">the model returned nothing</p>
+      <div class="chips"><span class="chip w">${esc(r.block_reason || 'no reason given')}</span></div></div>`;
+    return;
+  }
+  const showsGender = !!(r.gender && r.other_gender);
+  out.innerHTML = `<div class="main">
+    <div class="formrow">
+      <span class="tag">${esc(labelOf(slotOf(r.form)))}</span>
+      ${showsGender ? `<span class="tag">${esc(gender)}</span>` : ''}
+    </div>
+    <p class="es">${esc(textFor(r))}</p>
+    <div class="chips">${chipsFor(r)}</div>
+    ${r.pair_ids.length ? `<p class="ids">cited: ${r.pair_ids.map(p => 'line ' + p).join('  ')}</p>` : ''}
+    ${altsFor(r)}
+  </div>`;
+  document.querySelectorAll('#persons button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.id === chosen)));
+}
+
+function controls(){
+  const slots = data.readings.map(r => slotOf(r.form));
+  chosen = ORDER.find(id => slots.includes(id));
+  const anyGender = data.readings.some(r => r.gender && r.other_gender);
+
+  // Person appears only when the English left it open; gender only when a reading marks it.
+  const showPerson = data.ambiguous && slots.length > 1;
+  document.getElementById('plab').style.display = showPerson ? '' : 'none';
+  document.getElementById('persons').style.display = showPerson ? '' : 'none';
+  document.getElementById('glab').style.display = anyGender ? '' : 'none';
+  document.getElementById('genders').style.display = anyGender ? '' : 'none';
+  bar.classList.toggle('on', showPerson || anyGender);
+
+  document.getElementById('fixednote').textContent =
+    showPerson ? '' : 'person fixed by the original';
+
+  document.getElementById('persons').innerHTML = ORDER.filter(id => slots.includes(id))
+    .map(id => `<button type="button" data-id="${id}" aria-pressed="${id === chosen}">
+        <span>${labelOf(id)}</span><span class="n">${PARADIGM.find(p => p.id === id).n}</span>
+      </button>`).join('');
+  document.querySelectorAll('#persons button').forEach(b =>
+    b.addEventListener('click', () => { chosen = b.dataset.id; draw(); }));
+
+  document.getElementById('genders').innerHTML = ['masculine', 'feminine']
+    .map(g => `<button type="button" data-g="${g}" aria-pressed="${g === gender}">
+        <span>${g}</span></button>`).join('');
+  document.querySelectorAll('#genders button').forEach(b =>
+    b.addEventListener('click', () => {
+      gender = b.dataset.g;
+      document.querySelectorAll('#genders button').forEach(x =>
+        x.setAttribute('aria-pressed', String(x.dataset.g === gender)));
+      draw();
+    }));
+}
+
+function render(payload){
+  data = payload;
+  if (data.error){ bar.classList.remove('on'); out.innerHTML = `<p class="status">${esc(data.error)}</p>`; return; }
+  if (!data.readings.length){
+    bar.classList.remove('on');
+    out.innerHTML = '<p class="status">No reading survived — every form of address was refused for this line.</p>';
+    return;
+  }
+  controls();
+  draw();
+}
+
+document.querySelectorAll('.ex').forEach(b =>
+  b.addEventListener('click', () => { q.value = b.textContent; f.requestSubmit(); }));
+
+// Lines a translation scholar selected as cases of difficulty, with the paper that did it.
+// They stay behind their film because that is what makes them evidence rather than shock.
+const FILMS = {
+  pulp: {
+    title: 'Pulp Fiction',
+    note: 'Ávila-Cabrera (2015) measured 41.8% of this film’s offensive load never reaching the Spanish subtitle.',
+    lines: ['Shut the fuck up', 'Get the fuck out my face!', 'Goddamn it!',
+            'The motherfucker’s tip-top', 'He wore this watch up his ass'],
+  },
+  deadpool: {
+    title: 'Deadpool',
+    note: 'Rohmawati (2021) found deletion the most frequent strategy in Deadpool 2 — 39% of instances.',
+    lines: ['I’ll burn your balls off!', 'And nobody fucking realizes it.',
+            'Why such a douche this morning?'],
+  },
+};
+
+const reel = document.getElementById('reel'), reelrow = document.getElementById('reelrow'),
+      reelnote = document.getElementById('reelnote');
+
+document.querySelectorAll('.film').forEach(b => b.addEventListener('click', () => {
+  const open = b.getAttribute('aria-expanded') === 'true';
+  document.querySelectorAll('.film').forEach(x => x.setAttribute('aria-expanded', 'false'));
+  if (open){ reel.hidden = true; return; }
+  b.setAttribute('aria-expanded', 'true');
+  const film = FILMS[b.dataset.film];
+  reelnote.textContent = film.note;
+  reelrow.innerHTML = film.lines.map(l =>
+    `<button class="ex" type="button">${esc(l)}</button>`).join('');
+  reelrow.querySelectorAll('.ex').forEach(x => x.addEventListener('click', () => {
+    // The corpus is keyed on ASCII apostrophes, so curly ones have to be folded before
+    // the phrase index can match anything.
+    q.value = x.textContent.replace(/[\u2018\u2019]/g, "'");
+    f.requestSubmit();
+  }));
+  reel.hidden = false;
+}));
 
 f.addEventListener('submit', async e => {
   e.preventDefault();
   const line = q.value.trim();
   if (!line) return;
   go.disabled = true;
-  out.innerHTML = '<p class="status">Buscando en el corpus…</p>';
+  bar.classList.remove('on');
+  out.innerHTML = '<p class="status">Searching the corpus…</p>';
   try {
     const res = await fetch('/api/localise', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({line})
     });
-    if (!res.ok) throw new Error(`el servidor respondió ${res.status}`);
+    if (!res.ok) throw new Error(`the server answered ${res.status}`);
     render(await res.json());
-  } catch (err) {
-    out.innerHTML = `<p class="status">No se pudo consultar: ${esc(err.message)}.
-      Revisa que ClickHouse esté arriba y que GOOGLE_API_KEY esté puesta.</p>`;
+  } catch (err){
+    out.innerHTML = `<p class="status">Could not reach the corpus: ${esc(err.message)}.
+      Check that ClickHouse is up and that GOOGLE_API_KEY is set.</p>`;
   } finally { go.disabled = false; }
 });
 </script>

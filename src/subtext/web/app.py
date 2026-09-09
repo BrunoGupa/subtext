@@ -125,11 +125,24 @@ def _localise(line: str) -> dict[str, Any]:
     from ..address_llm import cached_tagger
     from ..variants import translate_variants
 
+    from ..localise import gather_phrases
+
     model = settings().gemini_model
     ask = _asker(model)
     variants = translate_variants(line, ask=ask, tag_forms=cached_tagger(ask, model=model))
+    # Form-neutral and fetched once for the cue, so it rides on the response rather than
+    # on every reading: what a phrase agrees on is the same for tú, usted and ustedes.
+    phrases = gather_phrases(line)
     return {
         "line": line,
+        "agreed": [
+            {"phrase": hit.phrase, "support": hit.support, "spanish": c.spanish,
+             "lines": c.lines, "of_lines": c.of_lines, "enrichment": round(c.enrichment, 1)}
+            for hit in phrases for c in hit.consensus
+        ],
+        # One reading means the English settled the person; several mean it left it open,
+        # and only then is there a choice to offer.
+        "ambiguous": len(variants) > 1,
         "readings": [
             {
                 "form": v.form.value,
@@ -147,6 +160,15 @@ def _localise(line: str) -> dict[str, Any]:
                 "block_reason": v.block_reason,
                 "gender": v.gender.value if v.gender else None,
                 "other_gender": v.other_gender,
+                "agreed": list(v.agreed),
+                # Quotations, shown as their translator wrote them. Never re-gendered:
+                # a `pair_id` that points at a line nobody wrote is worth less than none.
+                "alternatives": [
+                    {"spanish": a.spanish, "english": a.english, "pair_id": a.pair_id,
+                     "similarity": round(a.similarity, 2), "times": a.times,
+                     "of": a.english_times}
+                    for a in v.alternatives
+                ],
             }
             for v in variants
         ],
