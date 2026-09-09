@@ -50,7 +50,7 @@ demo: env up install schema ## Cold start. Needs the corpus - see `make fetch` f
 test: ## Run the test suite
 	uv run pytest -q
 
-.PHONY: help env up down nuke install schema load serve ask eval sweep demo test build-mx build-mx-fast embed-mx precedent
+.PHONY: help env up down nuke install schema load serve ask eval sweep demo test build-mx build-mx-fast embed-mx precedent deploy
 
 build-mx: ## Build the Mexican corpus from the loaded parallel corpus (~75 s)
 	uv run subtext build-mx
@@ -63,3 +63,9 @@ embed-mx: ## Embed the English side of the Mexican corpus + HNSW index (~2 min, 
 
 precedent: ## Find Mexican precedent for a line: make precedent Q="Hurry up!"
 	uv run subtext precedent "$(Q)"
+
+deploy: ## Deploy the web UI to Cloud Run. Needs GCP_PROJECT and the .env values in the environment.
+	gcloud run deploy subtext --source . --project $(GCP_PROJECT) --region us-east1 \
+	  --allow-unauthenticated --max-instances 1 --memory 1Gi --cpu 1 --timeout 120 \
+	  --set-env-vars CLICKHOUSE_HOST=$(CLICKHOUSE_HOST),CLICKHOUSE_HTTP_PORT=$(CLICKHOUSE_HTTP_PORT),CLICKHOUSE_SECURE=true,CLICKHOUSE_USER=$(CLICKHOUSE_USER),CLICKHOUSE_DATABASE=$(CLICKHOUSE_DATABASE),SUBTEXT_MODEL=gemini-3.8-flash,EMBEDDING_MODEL=gemini-embedding-001,EMBEDDING_DIM=768,GOOGLE_CLOUD_PROJECT=$(GCP_PROJECT) \
+	  --set-secrets CLICKHOUSE_PASSWORD=clickhouse-password:latest,GOOGLE_API_KEY=gemini-key:latest

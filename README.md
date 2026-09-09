@@ -117,11 +117,14 @@ each half took: ClickHouse Cloud for the precedents and the agreement, Gemini fo
 readings. **The example lines on the page are not in the corpus** — checked one by one. An
 exact match would simply hand back a subtitle somebody already wrote, so the demo lines are
 ones the system has to assemble from precedent: phrases it has seen, in lines it has not.
-Under every answer the page also prints the **control**: the same Gemini model asked for
-"Mexican Spanish" with no corpus behind it, uncited, run through the same register lexicon.
-On mild lines the two often agree; the corpus earns its keep where register is loaded
-(`Get out of my car.` → `Sal de mi auto.`, cited, against the model's `Bájate de mi carro.`,
-where subtitlers write `auto` 4:1). Two evaluation pages, `/examples/paper` and
+Under every answer the page also prints two **controls**, uncited and run through the same
+register lexicon: the same Gemini model asked for "Mexican Spanish" with no corpus behind
+it, and Google Translate, which has no Mexican Spanish to ask for — its target is `es`, one
+Spanish, and on the evaluation lines it answers in peninsular (`coche`, `chaqueta`,
+`conduce`, `coño`). On mild lines Gemini alone often agrees with the corpus; it earns its
+keep where register is loaded (`Get out of my car.` → `Sal de mi auto.`, cited, against the
+model's `Bájate de mi carro.` and Google's `Sal de mi coche.`, where subtitlers write `auto`
+4:1). Two evaluation pages, `/examples/paper` and
 `/examples/film`, show full pipeline output over the 40 scholar-chosen lines and the 102
 film-sampled lines, rendered ahead of time. A line in the URL, `/?q=Shut+up+and+drive.`, is
 localised on arrival.
@@ -378,9 +381,14 @@ CLICKHOUSE_USER=...,CLICKHOUSE_DATABASE=subtext,SUBTEXT_MODEL=gemini-3.8-flash \
   --max-instances 1 --memory 1Gi
 ```
 
-`--max-instances 1` is deliberate: the per-address rate limit and the daily Gemini budget in
+`make deploy GCP_PROJECT=...` runs the same command with the `.env` values. `--max-instances
+1` is deliberate: the per-address rate limit and the daily Gemini budget in
 [`app.py`](src/subtext/web/app.py) are held in memory, so one instance is what makes them
-real. The site is public, and every request is paid Gemini tokens.
+real. The site is public, and every request is paid Gemini tokens. Answers are cached in a
+`web_cache` table in ClickHouse as well as in memory, so a redeploy or a scale-to-zero does
+not pay for the same line twice, and the page says which cache it came from. The Google
+Translate control needs the Cloud Translation API enabled and `roles/cloudtranslate.user`
+on the service account; without them it is simply not shown.
 
 ## Status
 The corpus, both retrieval channels, the localisation pipeline, the web UI and the

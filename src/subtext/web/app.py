@@ -20,6 +20,7 @@ Two modes, deliberately:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import threading
 import time
@@ -147,6 +148,119 @@ _cache: OrderedDict[str, dict] = OrderedDict()
 _CACHE_MAX = 256
 _guard_lock = threading.Lock()
 
+#: The shape of the payload. Bumped whenever a field is added, so a cached answer from an
+#: older build is recomputed rather than rendered with a hole in it.
+CACHE_VERSION = 4
+
+#: Answers also live in ClickHouse, keyed by the cleaned line. The in-memory dict above is
+#: lost on every deploy and every scale-to-zero, which for a demo means the same five example
+#: lines are paid for again each time the site wakes up, and a judge who arrives first waits
+#: 20 s where the second one waits none. ClickHouse Cloud is already the shared state of the
+#: system, and a ReplacingMergeTree keyed on the line is a cache with no code of its own.
+CACHE_DDL = """
+CREATE TABLE IF NOT EXISTS web_cache (
+    line String, payload String, created DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(created) ORDER BY line
+"""
+_cache_table_ready = False
+
+
+def _cache_key(line: str) -> str:
+    return f"v{CACHE_VERSION}|{line}"
+
+
+def _cache_get(line: str) -> dict | None:
+    key = _cache_key(line)
+    with _guard_lock:
+        hit = _cache.get(key)
+        if hit is not None:
+            _cache.move_to_end(key)
+            return {**hit, "cached": "memory"}
+    try:
+        from ..db import client
+        rows = client().query(
+            "SELECT payload FROM web_cache WHERE line = {k:String} ORDER BY created DESC LIMIT 1",
+            parameters={"k": key}).result_rows
+    except Exception:  # a cache that cannot be read is a miss, never an error
+        return None
+    if not rows:
+        return None
+    answer = json.loads(rows[0][0])
+    with _guard_lock:
+        _cache[key] = answer
+    return {**answer, "cached": "clickhouse"}
+
+
+def _cache_put(line: str, answer: dict) -> None:
+    global _cache_table_ready
+    key = _cache_key(line)
+    with _guard_lock:
+        _cache[key] = answer
+        while len(_cache) > _CACHE_MAX:
+            _cache.popitem(last=False)
+    try:
+        from ..db import client
+        ch = client()
+        if not _cache_table_ready:
+            ch.command(CACHE_DDL)
+            _cache_table_ready = True
+        ch.insert("web_cache", [[key, json.dumps(answer, ensure_ascii=False)]],
+                  column_names=["line", "payload"])
+    except Exception:  # the answer is already on its way to the person; the cache can wait
+        pass
+
+
+#: Google Translate, as the second control. It has no Mexican Spanish to ask for -- the
+#: target is `es`, one Spanish -- and on the evaluation lines it answers in peninsular:
+#: `coche`, `chaqueta`, `conduce`, `coño`. That is the product's argument made by a
+#: neighbour, so it is shown, uncited, under the readings. Reached with the runtime's own
+#: credentials (the Cloud Run service account, or gcloud locally); absent those, or the API,
+#: it is simply not shown. Free below 500,000 characters a month.
+TRANSLATE_URL = "https://translation.googleapis.com/language/translate/v2"
+_google_creds = None
+
+
+def _google_token() -> tuple[str, str | None]:
+    """A bearer token and the project to bill. Application default credentials first --
+    that is the Cloud Run service account -- and, on a developer machine where those may be
+    stale, the gcloud CLI's own token."""
+    global _google_creds
+    import google.auth
+    import google.auth.transport.requests
+
+    try:
+        if _google_creds is None:
+            _google_creds, project = google.auth.default(
+                scopes=["https://www.googleapis.com/auth/cloud-translation"])
+            _google_creds._quota_project = os.getenv("GOOGLE_CLOUD_PROJECT") or project
+        if not _google_creds.valid:
+            _google_creds.refresh(google.auth.transport.requests.Request())
+        return _google_creds.token, _google_creds._quota_project
+    except Exception:
+        import subprocess
+        token = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True,
+                               text=True, timeout=15, check=True).stdout.strip()
+        return token, os.getenv("GOOGLE_CLOUD_PROJECT")
+
+
+def _google(line: str) -> dict[str, Any]:
+    from ..localise import check_register
+
+    try:
+        import requests
+
+        token, project = _google_token()
+        headers = {"Authorization": f"Bearer {token}"}
+        if project:
+            headers["x-goog-user-project"] = project
+        r = requests.post(TRANSLATE_URL, headers=headers, timeout=10,
+                          json={"q": [line], "source": "en", "target": "es", "format": "text"})
+        r.raise_for_status()
+        spanish = r.json()["data"]["translations"][0]["translatedText"].strip()
+    except Exception as exc:
+        return {"spanish": "", "error": str(exc)[:120], "not_mexican": [], "watch": []}
+    return {"spanish": spanish, "error": "", **_register(spanish)}
+
 
 def _rate_ok(who: str) -> bool:
     now = time.time()
@@ -184,6 +298,18 @@ def _asker(model: str | None = None):
     return asker(model)
 
 
+def _register(spanish: str) -> dict[str, list[str]]:
+    """The same lexicon the readings are gated on, applied to a control. `not_mexican` is
+    what fails a reading; `watch` is Spain's usual word where Mexican subtitlers also use
+    it sometimes -- `joder`, `coño` -- reported, never failed, and worth seeing on a control
+    because it is exactly the register the controls drift into."""
+    from ..localise import check_register
+
+    report = check_register(spanish)
+    return {"not_mexican": list(report.not_mexican) + list(report.other_latam),
+            "watch": list(report.watch)}
+
+
 BASELINE_PROMPT = ("Translate this English subtitle line into Mexican Spanish. "
                    "Reply with the Spanish line only, nothing else.\n\n")
 
@@ -199,9 +325,7 @@ def _baseline(line: str, ask) -> dict[str, Any]:
     if not reply or reply.startswith(BLOCKED):
         return {"spanish": "", "error": reply or "empty response", "not_mexican": []}
     spanish = reply.splitlines()[0].strip().strip('"“”')
-    report = check_register(spanish)
-    return {"spanish": spanish, "error": "",
-            "not_mexican": list(report.not_mexican) + list(report.other_latam)}
+    return {"spanish": spanish, "error": "", **_register(spanish)}
 
 
 def _localise(line: str) -> dict[str, Any]:
@@ -229,6 +353,7 @@ def _localise(line: str) -> dict[str, Any]:
         # is the whole product. Never gated, never retried, never cited -- it is shown as
         # what it is, and run through the register lexicon so its peninsular words show.
         "baseline": _baseline(line, ask),
+        "google": _google(line),
         "line": line,
         # Where the time went, so the page can say it. The phrase channel is ten round
         # trips to ClickHouse Cloud; everything after it is the vector channel plus one
@@ -292,16 +417,13 @@ async def api_localise(request: LocaliseRequest, http: Request) -> dict[str, Any
         return {"line": line, "readings": [],
                 "error": "GOOGLE_API_KEY is not set, so no translation can be written."}
 
-    # Repeats cost nothing and the demo repeats a lot: four example buttons, one judge,
-    # one video take, the same four lines each time.
-    with _guard_lock:
-        cached = _cache.get(line)
-        if cached is not None:
-            _cache.move_to_end(line)
+    # Repeats cost nothing and the demo repeats a lot: five example buttons, one judge,
+    # one video take, the same five lines each time. Said out loud in the payload: a repeat
+    # answer is instant because it is a repeat, not because the corpus is fast, and the
+    # page must not advertise one as the other.
+    cached = await asyncio.to_thread(_cache_get, line)
     if cached is not None:
-        # Said out loud: a repeat answer is instant because it is a repeat, not because
-        # the corpus is fast, and the page must not advertise one as the other.
-        return {**cached, "cached": True}
+        return cached
 
     who = (http.client.host if http.client else "?")
     if not _rate_ok(who):
@@ -313,10 +435,7 @@ async def api_localise(request: LocaliseRequest, http: Request) -> dict[str, Any
                          "searchable; come back tomorrow for a new line."}
 
     answer = await asyncio.to_thread(_localise, line)
-    with _guard_lock:
-        _cache[line] = answer
-        while len(_cache) > _CACHE_MAX:
-            _cache.popitem(last=False)
+    await asyncio.to_thread(_cache_put, line, answer)
     return answer
 
 
