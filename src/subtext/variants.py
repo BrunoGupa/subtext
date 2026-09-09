@@ -565,7 +565,6 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
     cannot read. The cache is what makes it affordable: the label belongs to the line, not
     to the query, so it is paid for once.
     """
-    out: list[Variant] = []
     if phrases is None:
         phrases = gather_phrases(cue)
     # Form-neutral, like the phrase channel it comes from: what `up his ass` agrees on is
@@ -590,49 +589,47 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
     base = max(readings, key=lambda e: (len(e.precedents),
                                         max((p.similarity for p in e.precedents), default=0.0)))
     decided = ""
+    order = sorted(readings, key=lambda e: e is not base)
 
-    for evidence in sorted(readings, key=lambda e: e is not base):
-        if evidence is base or not decided:
-            prompt = format_variant_prompt(cue, evidence, limit=limit, phrases=phrases)
-        else:
-            who, description = _ASKED[evidence.form]
-            prompt = DECLINE_INSTRUCTION.format(
-                spanish=fence(decided),
-                who=f"{who} — {description}" if who else description,
-                grammar=_GRAMMAR[evidence.form])
+    def render(evidence, prompt: str) -> "Variant | None":
+        """One reading, start to finish: ask, gate, retry if Python says so, gender it.
+
+        Pulled out of the loop so the readings that do not decide the wording can run at
+        the same time as each other. Nothing in here touches anything shared: it reads its
+        own evidence and the already-decided string, and returns one `Variant`. `None`
+        means the model refused this reading, which is not a failure -- see REFUSAL.
+        """
         reply = ask(prompt)
 
         # No text came back. That is not a refusal and must not be reported as one: the
         # reading is offered as unanswered, with whatever reason the provider gave, so a
         # blank row can be explained instead of guessed at.
         if not reply.strip() or reply.startswith(BLOCKED):
-            out.append(Variant(
+            return Variant(
                 form=evidence.form, spanish="", answered=False,
                 block_reason=reply[len(BLOCKED):].strip() or "no reason given",
                 pair_ids=evidence.pair_ids[:limit], agreed=agreed,
                 grounded=bool(evidence.precedents or evidence.shared or agreed),
-            ))
-            continue
+            )
 
         spanish = _first_line(reply)
         # The gates below read register, form and grammar. None of them can see the one
         # thing an injection produces: an answer that is the prompt talking rather than a
         # subtitle. That is checked here, before anything downstream trusts the string.
         if looks_like_leak(spanish, cue=cue):
-            out.append(Variant(
+            return Variant(
                 form=evidence.form, spanish="", answered=False,
                 block_reason="the answer did not look like a subtitle line",
                 pair_ids=evidence.pair_ids[:limit], agreed=agreed,
                 grounded=bool(evidence.precedents or evidence.shared or agreed),
-            ))
-            continue
+            )
 
         # The model was given the right to refuse a reading the line rules out -- usted to
         # somebody the line calls `kid`. A refused reading is not offered at all, which is
         # the point: `Brindo por usted, niña.` was not bad grammar, it was a reading that
         # should never have been generated.
         if spanish.upper().rstrip(".!") == REFUSAL:
-            continue
+            return None
 
         form, well_formed, fix = check_output(spanish, ask=ask)
         wrong_form = (evidence.form is not Address.UNMARKED
@@ -669,9 +666,6 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
                 form, well_formed, _ = check_output(spanish, ask=ask)
                 report = check_register(spanish)
 
-        if evidence is base:
-            decided = spanish
-
         # Asking for the other gender is also how we find out whether there is one: a line
         # that marks nobody's gender has nothing to change and comes back NONE. Most lines
         # are that, so the question is asked once on the decided wording and only pursued
@@ -681,7 +675,7 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
         # the same for either -- while its usted reading has to choose `lo` or `la`.
         gender, other = _regender(spanish, cue, ask=ask) if spanish else (None, "")
 
-        out.append(Variant(
+        return Variant(
             form=evidence.form,
             spanish=spanish,
             pair_ids=evidence.pair_ids[:limit],
@@ -700,7 +694,51 @@ def translate_variants(cue: str, *, ask, limit: int = 8, tag_forms=None,
             gender=gender,
             other_gender=other,
             alternatives=alternatives_for(evidence, spanish),
-        ))
+        )
+
+    # The base decides the wording, so it goes first and alone.
+    results: dict[int, "Variant | None"] = {}
+    results[0] = render(base, format_variant_prompt(cue, base, limit=limit, phrases=phrases))
+    first = results[0]
+    if first is not None and first.answered:
+        decided = first.spanish
+
+    rest = order[1:]
+
+    def decline_prompt(evidence) -> str:
+        who, description = _ASKED[evidence.form]
+        return DECLINE_INSTRUCTION.format(
+            spanish=fence(decided),
+            who=f"{who} — {description}" if who else description,
+            grammar=_GRAMMAR[evidence.form])
+
+    if decided and rest:
+        # Every remaining reading is the decided line declined, so none of them depends on
+        # another: they only read `decided`, which will not change again. Run them at once.
+        # Measured on `Are you sure?`: nine Gemini calls in series were 17.7 s of a 24 s
+        # request, and the readings after the base are most of them.
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=len(rest)) as pool:
+            futures = {i: pool.submit(render, e, decline_prompt(e))
+                       for i, e in enumerate(rest, start=1)}
+        for i, future in futures.items():
+            results[i] = future.result()      # exceptions surface here, never swallowed
+    else:
+        # The base did not answer, so nothing has been decided and the relay is still open:
+        # the next reading that answers gets the full prompt and becomes the decider. That
+        # is a chain, and a chain cannot be run in parallel without turning these back into
+        # independent translations -- which is the failure `DECLINE_INSTRUCTION` exists to
+        # prevent. Rare path, kept sequential and identical to what it always was.
+        for i, evidence in enumerate(rest, start=1):
+            prompt = (decline_prompt(evidence) if decided
+                      else format_variant_prompt(cue, evidence, limit=limit, phrases=phrases))
+            variant = render(evidence, prompt)
+            results[i] = variant
+            if not decided and variant is not None and variant.answered:
+                decided = variant.spanish
+
+    out = [results[i] for i in range(len(order)) if results.get(i) is not None]
     return out
 
 
