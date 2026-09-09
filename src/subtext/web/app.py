@@ -307,7 +307,13 @@ def _register(spanish: str) -> dict[str, list[str]]:
 
     report = check_register(spanish)
     return {"not_mexican": list(report.not_mexican) + list(report.other_latam),
-            "watch": list(report.watch)}
+            "watch": [w for w in report.watch if w not in DEFENDED]}
+
+
+#: Watch-list words the README explicitly defends as Mexican usage too -- `coche` 373 times
+#: in the Mexican corpus, `vale` 924 -- so flagging them on a control would contradict the
+#: project's own finding on the same page.
+DEFENDED = frozenset({"coche", "vale"})
 
 
 BASELINE_PROMPT = ("Translate this English subtitle line into Mexican Spanish. "

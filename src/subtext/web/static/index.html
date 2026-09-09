@@ -100,7 +100,10 @@ input:focus-visible{outline:none}
 .group button[aria-pressed="true"] .n{color:var(--ground);opacity:.6}
 .fixed{font-size:12.5px;color:var(--faint)}
 
-#out{margin-top:26px;padding-bottom:56px}
+#out{margin-top:26px}
+#out:empty{margin-top:0}
+.context{padding:6px 0 56px}
+.context .why{margin-top:22px}
 .status{color:var(--muted);font-size:15px;margin:26px 0}
 
 .main{padding:22px 0 0}
@@ -237,6 +240,19 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     <span class="reelrow" id="reelrow"></span>
   </div>
 
+</header>
+
+<div class="bar" id="bar">
+  <span class="barlab" id="plab">Person</span>
+  <div class="group" id="persons"></div>
+  <span class="barlab" id="glab">Gender</span>
+  <div class="group" id="genders"></div>
+  <span class="fixed" id="fixednote"></span>
+</div>
+
+<section id="out" aria-live="polite"></section>
+
+<section class="context">
   <p class="why"><b>Why this has to exist.</b> Of the <span class="n">135,470</span> films and
   episodes in the 103.6-million-line OpenSubtitles corpus, only <span class="n">241</span>
   are subtitled in recognisably Mexican Spanish — <span class="n">0.18%</span>. Peninsular
@@ -266,17 +282,7 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     <a href="/examples/film">Full run: 102 profane lines from the same films</a>
     <a href="https://github.com/BrunoGupa/subtext">Source on GitHub (Apache-2.0)</a>
   </div>
-</header>
-
-<div class="bar" id="bar">
-  <span class="barlab" id="plab">Person</span>
-  <div class="group" id="persons"></div>
-  <span class="barlab" id="glab">Gender</span>
-  <div class="group" id="genders"></div>
-  <span class="fixed" id="fixednote"></span>
-</div>
-
-<section id="out" aria-live="polite"></section>
+</section>
 
 <footer>
   <div class="stack">
