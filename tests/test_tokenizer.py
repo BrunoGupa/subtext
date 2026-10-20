@@ -78,9 +78,11 @@ def test_a_contraction_costs_one_token_not_two():
 
 def test_clickhouse_expression_escapes_the_apostrophe_for_sql():
     sql = clickhouse_tokens_sql("en")
-    assert sql == "extractAll(lowerUTF8(en), '[a-z]+(?:''[a-z]+)?')"
+    # `lower` under chDB, which has no `lowerUTF8`; identical on what the pattern extracts.
+    assert sql in ("extractAll(lowerUTF8(en), '[a-z]+(?:''[a-z]+)?')",
+                   "extractAll(lower(en), '[a-z]+(?:''[a-z]+)?')")
     # Doubling is SQL string escaping only; unescaping recovers the Python pattern.
-    inner = re.fullmatch(r"extractAll\(lowerUTF8\(en\), '(.*)'\)", sql).group(1)
+    inner = re.fullmatch(r"extractAll\(lower(?:UTF8)?\(en\), '(.*)'\)", sql).group(1)
     assert inner.replace("''", "'") == WORD_PATTERN
 
 

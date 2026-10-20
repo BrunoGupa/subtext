@@ -306,8 +306,8 @@ code{font-family:var(--mono);font-size:.92em;background:var(--sunk);padding:1px 
     <span class="t"><b>Google Cloud</b> · Cloud Run</span>
     <span class="t"><b>Gemini 3.8 Flash</b> via Google ADK</span>
     <span class="t"><b>gemini-embedding-001</b> · 768-d</span>
-    <span class="t"><b>ClickHouse Cloud</b> on GCP · HNSW vector index + SQL</span>
-    <span class="t"><b>mcp-clickhouse</b> · the official ClickHouse MCP server</span>
+    <span class="t"><b>ClickHouse</b> · embedded (chDB) in the Cloud Run image · vector search + SQL</span>
+    <span class="t"><b>mcp-clickhouse</b> · the official MCP server, when run against a ClickHouse server</span>
   </div>
   <div class="legend">
     <div class="card">
@@ -468,7 +468,7 @@ function chipsFor(r){
 }
 
 // Where the seconds went. The two halves are different products: the corpus half is
-// ClickHouse Cloud answering ten phrase queries and one HNSW vector search; the rest is
+// ClickHouse answering ten phrase queries and one vector search; the rest is
 // Gemini writing one line per reading. A repeat is served from memory and says so, because
 // an instant answer that is really a cached one would be advertising the wrong thing.
 function tookFor(){
@@ -476,8 +476,8 @@ function tookFor(){
   if (!t) return '';
   if (data.cached)
     return `<p class="took">served from ${data.cached === 'clickhouse' ? 'the ClickHouse cache' : 'memory'} — first computed in ${t.total_s}s
-      (ClickHouse Cloud <b>${t.corpus_s}s</b> · Gemini ${(t.total_s - t.corpus_s).toFixed(1)}s)</p>`;
-  return `<p class="took">ClickHouse Cloud <b>${t.corpus_s}s</b> for every precedent and
+      (ClickHouse <b>${t.corpus_s}s</b> · Gemini ${(t.total_s - t.corpus_s).toFixed(1)}s)</p>`;
+  return `<p class="took">ClickHouse <b>${t.corpus_s}s</b> for every precedent and
     agreement in 335,800 lines · Gemini ${(t.total_s - t.corpus_s).toFixed(1)}s for
     ${data.readings.length} reading${data.readings.length === 1 ? '' : 's'}
     · ${t.total_s}s in all</p>`;

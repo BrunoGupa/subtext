@@ -1,0 +1,20 @@
+# What `gcloud run deploy --source .` uploads. Without this file gcloud falls back to
+# .gitignore, which excludes data/runtime/ -- the database the image is built from.
+.gcloudignore
+.git
+.venv
+.env
+.env.*
+!.env.example
+chdb/
+data/raw
+tests
+evals
+demo
+docs
+study
+private
+__pycache__
+*.pyc
+.pytest_cache
+.DS_Store

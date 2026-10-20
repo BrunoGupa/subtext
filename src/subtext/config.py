@@ -31,6 +31,11 @@ class Settings:
     embedding_model: str
     embedding_dim: int
     gemini_model: str
+    #: `clickhouse` reaches a server (Docker locally, ClickHouse Cloud before). `chdb` runs
+    #: the same engine in-process over a directory baked into the image: no server to pay
+    #: for, which is what keeps the public demo up now that the Cloud trial has ended.
+    db_backend: str
+    chdb_path: str
 
     @property
     def has_gemini_key(self) -> bool:
@@ -49,4 +54,6 @@ def settings() -> Settings:
         embedding_model=os.getenv("EMBEDDING_MODEL", "gemini-embedding-001"),
         embedding_dim=int(os.getenv("EMBEDDING_DIM", "768")),
         gemini_model=os.getenv("SUBTEXT_MODEL", "gemini-3.8-flash"),
+        db_backend=os.getenv("SUBTEXT_DB", "clickhouse").strip().lower(),
+        chdb_path=os.getenv("SUBTEXT_CHDB_PATH", str(PROJECT_ROOT / "chdb")),
     )

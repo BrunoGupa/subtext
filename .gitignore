@@ -36,3 +36,8 @@ data/*.parquet
 *.log
 .DS_Store
 clickhouse_data/
+
+# The demo database, exported from ClickHouse and baked into the Cloud Run image. Not
+# redistributed from this repo.
+data/runtime/
+chdb/

@@ -64,8 +64,20 @@ embed-mx: ## Embed the English side of the Mexican corpus + HNSW index (~2 min, 
 precedent: ## Find Mexican precedent for a line: make precedent Q="Hurry up!"
 	uv run subtext precedent "$(Q)"
 
-deploy: ## Deploy the web UI to Cloud Run. Needs GCP_PROJECT and the .env values in the environment.
+runtime-data: ## Export the five tables the web page reads, from local ClickHouse, as Parquet
+	mkdir -p data/runtime
+	for t in mx_corpus mx_embeddings phrase_index address_tags web_cache; do \
+	  docker exec subtext-ch clickhouse-client -q "SELECT * FROM subtext.$$t FORMAT Parquet" > data/runtime/$$t.parquet \
+	  || rm -f data/runtime/$$t.parquet; done
+
+chdb: ## Build the embedded database (./chdb) from data/runtime, as the image does
+	SUBTEXT_DB=chdb uv run python -c "from subtext.db import build_chdb; build_chdb('data/runtime')"
+
+serve-chdb: ## Run the web UI on the embedded database, as Cloud Run does
+	SUBTEXT_DB=chdb uv run subtext serve
+
+deploy: ## Deploy the web UI to Cloud Run (database in the image). Needs GCP_PROJECT. --set-* replaces every env var and secret, so the old ClickHouse Cloud ones go.
 	gcloud run deploy subtext --source . --project $(GCP_PROJECT) --region us-east1 \
-	  --allow-unauthenticated --max-instances 1 --memory 1Gi --cpu 1 --timeout 120 \
-	  --set-env-vars CLICKHOUSE_HOST=$(CLICKHOUSE_HOST),CLICKHOUSE_HTTP_PORT=$(CLICKHOUSE_HTTP_PORT),CLICKHOUSE_SECURE=true,CLICKHOUSE_USER=$(CLICKHOUSE_USER),CLICKHOUSE_DATABASE=$(CLICKHOUSE_DATABASE),SUBTEXT_MODEL=gemini-3.8-flash,EMBEDDING_MODEL=gemini-embedding-001,EMBEDDING_DIM=768,GOOGLE_CLOUD_PROJECT=$(GCP_PROJECT) \
-	  --set-secrets CLICKHOUSE_PASSWORD=clickhouse-password:latest,GOOGLE_API_KEY=gemini-key:latest
+	  --allow-unauthenticated --max-instances 1 --memory 2Gi --cpu 1 --timeout 120 \
+	  --set-env-vars SUBTEXT_MODEL=gemini-3.8-flash,EMBEDDING_MODEL=gemini-embedding-001,EMBEDDING_DIM=768,GOOGLE_CLOUD_PROJECT=$(GCP_PROJECT) \
+	  --set-secrets GOOGLE_API_KEY=gemini-key:latest

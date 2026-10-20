@@ -72,7 +72,13 @@ def phrases(text: str, max_n: int = MAX_N) -> Iterator[str]:
 def clickhouse_tokens_sql(column: str = "en") -> str:
     """The ClickHouse expression that tokenizes `column` the same way `tokens` does."""
     escaped = WORD_PATTERN.replace("'", "''")
-    return f"extractAll(lowerUTF8({column}), '{escaped}')"
+    # chDB is built without ICU, so `lowerUTF8` does not exist there. For this pattern the
+    # two agree: it extracts only ASCII `[a-z]`, and on ASCII `lower` and `lowerUTF8` are the
+    # same function; a non-ASCII letter is dropped by the pattern whatever its case.
+    from .config import settings
+
+    lower = "lower" if settings().db_backend == "chdb" else "lowerUTF8"
+    return f"extractAll({lower}({column}), '{escaped}')"
 
 
 def clickhouse_haystack_sql(column: str = "en") -> str:

@@ -144,4 +144,10 @@ def query_values(sql: str) -> list[tuple]:
 
 
 def available() -> bool:
+    # The MCP server speaks to a ClickHouse server. With the engine embedded (`chdb`) there
+    # is no server for it to reach, so the driver path answers instead.
+    from .config import settings
+
+    if settings().db_backend == "chdb":
+        return False
     return shutil.which(SERVER_COMMAND) is not None
