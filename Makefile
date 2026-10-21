@@ -64,11 +64,8 @@ embed-mx: ## Embed the English side of the Mexican corpus + HNSW index (~2 min, 
 precedent: ## Find Mexican precedent for a line: make precedent Q="Hurry up!"
 	uv run subtext precedent "$(Q)"
 
-runtime-data: ## Export the five tables the web page reads, from local ClickHouse, as Parquet
-	mkdir -p data/runtime
-	for t in mx_corpus mx_embeddings phrase_index address_tags web_cache; do \
-	  docker exec subtext-ch clickhouse-client -q "SELECT * FROM subtext.$$t FORMAT Parquet" > data/runtime/$$t.parquet \
-	  || rm -f data/runtime/$$t.parquet; done
+runtime-data: ## Export the five tables the web page reads, from ./chdb, as Parquet (the image builds from these)
+	SUBTEXT_DB=chdb uv run python -c "from subtext.db import export_runtime; export_runtime('data/runtime')"
 
 chdb: ## Build the embedded database (./chdb) from data/runtime, as the image does
 	SUBTEXT_DB=chdb uv run python -c "from subtext.db import build_chdb; build_chdb('data/runtime')"

@@ -370,25 +370,29 @@ server. Config is entirely environment-driven; nothing in this repo carries a cr
 
 ## Deploying the site
 
-The web UI is one container ([`Dockerfile`](Dockerfile)) with no state of its own: the corpus
-and the embeddings live in ClickHouse Cloud, the translations come from Gemini, and both are
-reached with environment variables — the same names as `.env.example`, set on the service
-rather than in a file. On Cloud Run:
+The web UI is one container ([`Dockerfile`](Dockerfile)). During the hackathon the corpus and
+the embeddings lived in ClickHouse Cloud. Since the trial ended, the site carries its own
+database: the page reads only five tables (the Mexican corpus, the phrase index, the
+embeddings and two caches, about 1 GB, not the 103.6M-row corpus they were built from), so
+they are exported to Parquet and built into the image, where **chDB** runs ClickHouse
+in-process over them. Same engine, same SQL, no server to keep up. Translations come from
+Gemini, with the key set on the service as a secret.
 
 ```bash
-gcloud run deploy subtext --source . --region us-east1 --allow-unauthenticated \
-  --set-env-vars CLICKHOUSE_HOST=...,CLICKHOUSE_HTTP_PORT=8443,CLICKHOUSE_SECURE=true,\
-CLICKHOUSE_USER=...,CLICKHOUSE_DATABASE=subtext,SUBTEXT_MODEL=gemini-3.8-flash \
-  --set-secrets CLICKHOUSE_PASSWORD=clickhouse-password:latest,GOOGLE_API_KEY=gemini-key:latest \
-  --max-instances 1 --memory 1Gi
+make runtime-data          # export the five tables from ./chdb to data/runtime/
+make deploy GCP_PROJECT=...
 ```
 
-`make deploy GCP_PROJECT=...` runs the same command with the `.env` values. `--max-instances
-1` is deliberate: the per-address rate limit and the daily Gemini budget in
+`./chdb` is the working copy of that database, and the Gemini embeddings (768-d) live there;
+`SUBTEXT_DB=chdb` selects the embedded engine (the image sets it); the default,
+`clickhouse`, reaches a server as before, and is what the ingest and evaluation commands use.
+The MCP path needs a server, so on the embedded engine the phrase channel uses the driver.
+
+`--max-instances 1` is deliberate: the per-address rate limit and the daily Gemini budget in
 [`app.py`](src/subtext/web/app.py) are held in memory, so one instance is what makes them
 real. The site is public, and every request is paid Gemini tokens. Answers are cached in a
-`web_cache` table in ClickHouse as well as in memory, so a redeploy or a scale-to-zero does
-not pay for the same line twice, and the page says which cache it came from. The Google
+`web_cache` table as well as in memory, and the example lines ship pre-answered in the image,
+so a scale-to-zero does not pay for them again, and the page says which cache it came from. The Google
 Translate control needs the Cloud Translation API enabled and `roles/cloudtranslate.user`
 on the service account; without them it is simply not shown.
 
